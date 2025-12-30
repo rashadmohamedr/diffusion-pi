@@ -40,6 +40,7 @@ DEFAULT_PARAMS = {
     'L': 1.0,      # Domain length
     'M': 1.0,      # Mass/Amplitude
     'D': 0.1,      # Diffusion coefficient
+    't': 0.0,      # Time (controlled from web interface)
     'running': True
 }
 
@@ -370,7 +371,6 @@ def display_thread():
     
     # Show IP for configured duration
     ip_show_until = time.time() + IP_DISPLAY_DURATION
-    t_start = time.time()
     
     while not shutdown_event.is_set():
         current_time = time.time()
@@ -379,11 +379,11 @@ def display_thread():
         if current_time < ip_show_until:
             img = create_ip_display(current_ip)
         else:
-            # Run simulation
+            # Run simulation with static time from parameters
             with state_lock:
                 params = simulation_state.copy()
             
-            t_sim = (current_time - t_start) % 10  # Loop every 10 seconds
+            t_sim = params['t']  # Use time from web interface
             
             if params['mode'] == '1D':
                 x, u = simulate_1d(params['L'], params['M'], params['D'], t_sim)
@@ -427,6 +427,8 @@ def api_params():
                 simulation_state['M'] = float(data['M'])
             if 'D' in data:
                 simulation_state['D'] = float(data['D'])
+            if 't' in data:
+                simulation_state['t'] = float(data['t'])
         return jsonify({'status': 'ok', 'params': simulation_state})
     else:
         with state_lock:
