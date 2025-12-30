@@ -11,7 +11,6 @@ import threading
 import socket
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-import qrcode
 from flask import Flask, render_template, request, jsonify
 
 # Import ST7789 display driver
@@ -30,8 +29,6 @@ DISPLAY_WIDTH = 240
 DISPLAY_HEIGHT = 240
 WEB_PORT = 5000
 IP_DISPLAY_DURATION = 10  # seconds
-IP_REFRESH_INTERVAL = 30  # seconds
-NETWORK_RETRY_BACKOFF = [1, 2, 5, 10, 30, 60]  # seconds
 
 # Simulation defaults
 DEFAULT_PARAMS = {
@@ -48,12 +45,11 @@ DEFAULT_PARAMS = {
 
 state_lock = threading.Lock()
 simulation_state = DEFAULT_PARAMS.copy()
-current_ip = None
 display_instance = None
 shutdown_event = threading.Event()
 
 # ============================================================================
-# Network Monitor
+# Network Utilities
 # ============================================================================
 
 def get_ip_address():
@@ -69,30 +65,6 @@ def get_ip_address():
         return ip
     except Exception:
         return None
-
-def network_monitor_thread():
-    """Monitor network connection and update IP address"""
-    global current_ip
-    retry_count = 0
-    
-    while not shutdown_event.is_set():
-        ip = get_ip_address()
-        
-        if ip and ip != current_ip:
-            current_ip = ip
-            retry_count = 0
-            print(f"Network connected: {current_ip}")
-        elif not ip and current_ip:
-            current_ip = None
-            print("Network disconnected")
-        
-        if not ip:
-            retry_count = min(retry_count + 1, len(NETWORK_RETRY_BACKOFF) - 1)
-            wait_time = NETWORK_RETRY_BACKOFF[retry_count]
-            print(f"No network. Retry {retry_count} in {wait_time}s...")
-            time.sleep(wait_time)
-        else:
-            time.sleep(IP_REFRESH_INTERVAL)
 
 # ============================================================================
 # Diffusion Simulation Engine
@@ -130,45 +102,23 @@ def create_ip_display(ip_address):
     
     try:
         # Try to load a nice font
-        font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
+        font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+        font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
         font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
     except:
         font_large = ImageFont.load_default()
+        font_medium = ImageFont.load_default()
         font_small = ImageFont.load_default()
     
     # Title
-    draw.text((120, 30), "Diffusion Sim", fill=(148, 163, 184), anchor="mm", font=font_small)
+    draw.text((120, 60), "Diffusion Sim", fill=(148, 163, 184), anchor="mm", font=font_medium)
     
     # IP Address
     if ip_address:
-        draw.text((120, 80), ip_address, fill=(34, 211, 238), anchor="mm", font=font_large)
-        
-        # QR Code
-        qr = qrcode.QRCode(box_size=2, border=1)
-        qr.add_data(f"http://{ip_address}:{WEB_PORT}")
-        qr.make(fit=True)
-        qr_img = qr.make_image(fill_color=(34, 211, 238), back_color=(15, 23, 42))
-        
-        # Resize QR to fit
-        qr_img = qr_img.resize((100, 100))
-        img.paste(qr_img, (70, 120))
+        draw.text((120, 120), ip_address, fill=(34, 211, 238), anchor="mm", font=font_large)
+        draw.text((120, 160), f"http://{ip_address}:{WEB_PORT}", fill=(148, 163, 184), anchor="mm", font=font_small)
     else:
-        draw.text((120, 100), "Reconnecting...", fill=(239, 68, 68), anchor="mm", font=font_small)
-    
-    return img
-
-def create_reconnect_display(retry_count):
-    """Create reconnecting screen"""
-    img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-    except:
-        font = ImageFont.load_default()
-    
-    draw.text((120, 100), "Reconnecting...", fill=(239, 68, 68), anchor="mm", font=font)
-    draw.text((120, 140), f"Attempt {retry_count}", fill=(148, 163, 184), anchor="mm", font=font)
+        draw.text((120, 120), "No Network", fill=(239, 68, 68), anchor="mm", font=font_medium)
     
     return img
 
@@ -259,17 +209,20 @@ def display_thread():
             spi_speed_hz=80 * 1000 * 1000
         )
     
-    last_ip_show = 0
+    # Get IP address once at startup
+    current_ip = get_ip_address()
+    print(f"IP Address: {current_ip if current_ip else 'Not available'}")
+    
+    # Show IP for configured duration
+    ip_show_until = time.time() + IP_DISPLAY_DURATION
     t_start = time.time()
     
     while not shutdown_event.is_set():
         current_time = time.time()
         
-        # Show IP address periodically
-        if current_ip and (current_time - last_ip_show < IP_DISPLAY_DURATION):
+        # Show IP address at startup
+        if current_time < ip_show_until:
             img = create_ip_display(current_ip)
-        elif not current_ip:
-            img = create_reconnect_display(1)
         else:
             # Run simulation
             with state_lock:
@@ -288,10 +241,6 @@ def display_thread():
         if DISPLAY_AVAILABLE and display_instance:
             display_instance.display(img)
         
-        # Check if we should show IP again
-        if current_time - last_ip_show > IP_REFRESH_INTERVAL:
-            last_ip_show = current_time
-        
         time.sleep(0.05)  # ~20 FPS
 
 # ============================================================================
@@ -305,7 +254,7 @@ def index():
     """Serve main web interface"""
     with state_lock:
         params = simulation_state.copy()
-    return render_template('index.html', params=params, ip=current_ip)
+    return render_template('index.html', params=params, ip=get_ip_address())
 
 @app.route('/api/params', methods=['GET', 'POST'])
 def api_params():
@@ -342,11 +291,6 @@ def main():
     print("=" * 60)
     print("Embedded Diffusion Simulation System")
     print("=" * 60)
-    
-    # Start network monitor
-    network_thread = threading.Thread(target=network_monitor_thread, daemon=True)
-    network_thread.start()
-    print("✓ Network monitor started")
     
     # Start display thread
     display_thread_obj = threading.Thread(target=display_thread, daemon=True)
