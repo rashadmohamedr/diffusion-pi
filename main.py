@@ -13,13 +13,17 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from flask import Flask, render_template, request, jsonify
 
-# Import ST7789 display driver
+# Import ST7789 display driver (try lowercase first, then uppercase for compatibility)
 try:
-    import ST7789
+    import st7789 as ST7789
     DISPLAY_AVAILABLE = True
 except ImportError:
-    DISPLAY_AVAILABLE = False
-    print("WARNING: ST7789 not available. Running in simulation mode.")
+    try:
+        import ST7789
+        DISPLAY_AVAILABLE = True
+    except ImportError:
+        DISPLAY_AVAILABLE = False
+        print("WARNING: ST7789 not available. Running in simulation mode.")
 
 # ============================================================================
 # Configuration
@@ -198,16 +202,24 @@ def display_thread():
     
     # Initialize display
     if DISPLAY_AVAILABLE:
-        display_instance = ST7789.ST7789(
-            height=DISPLAY_HEIGHT,
-            width=DISPLAY_WIDTH,
-            rotation=0,
-            port=0,
-            cs=ST7789.BG_SPI_CS_FRONT,  # GPIO8 (CE0)
-            dc=24,                       # DC pin (GPIO24)
-            backlight=18,                # GPIO18 for PWM control
-            spi_speed_hz=80 * 1000 * 1000
-        )
+        try:
+            display_instance = ST7789.ST7789(
+                height=DISPLAY_HEIGHT,
+                width=DISPLAY_WIDTH,
+                rotation=0,
+                port=0,
+                cs=0,                        # CE0 = 0, CE1 = 1
+                dc=24,                       # DC pin (GPIO24)
+                backlight=18,                # GPIO18 for PWM control
+                spi_speed_hz=40 * 1000 * 1000  # Reduced speed for stability
+            )
+            # Explicitly turn on backlight if the method exists
+            if hasattr(display_instance, 'set_backlight'):
+                display_instance.set_backlight(True)
+            print("✓ Display initialized successfully")
+        except Exception as e:
+            print(f"✗ Display initialization failed: {e}")
+            display_instance = None
     
     # Get IP address once at startup
     current_ip = get_ip_address()
