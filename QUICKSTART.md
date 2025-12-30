@@ -54,7 +54,6 @@ sudo systemctl start diffusion.service
 
 1. Check IP on display (shows for 10 seconds on boot)
 2. Open browser: `http://<ip>:5000`
-3. Or scan QR code with phone
 
 ## Common Commands
 

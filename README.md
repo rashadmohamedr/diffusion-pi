@@ -19,20 +19,19 @@ A standalone embedded system for Raspberry Pi Zero 2 W that runs real-time diffu
 - **Web Interface** - Modern, responsive control panel accessible from any device
 - **Headless Operation** - No HDMI, keyboard, or mouse required
 - **Auto-Start on Boot** - Systemd service with automatic recovery
-- **Network Aware** - Displays IP address and QR code for easy access
+- **Network Aware** - Displays IP address for easy access
 
 ### 🎨 Display Behavior
 
 **On Boot:**
 1. Shows device IP address (large, readable font)
-2. Displays QR code pointing to `http://<ip>:5000`
-3. Duration: 10 seconds (configurable)
-4. Refreshes IP display every 30 seconds
+2. Shows URL: `http://<ip>:5000`
+3. Duration: 10 seconds
+4. Then switches to simulation display
 
 **During Operation:**
 - **1D Mode:** Animated line plot showing concentration profile
 - **2D Mode:** Color-mapped heatmap with gradient visualization
-- **Network Lost:** Shows "Reconnecting..." with retry counter
 
 ### 🌐 Web Interface
 
@@ -332,7 +331,6 @@ b = int(val * 238 / 255)  # Blue component
 - **Pillow** - Image rendering
 - **st7789** - SPI display driver (libgpiod-based)
 - **Flask** - Web server
-- **qrcode** - QR code generation
 
 ## 🐛 Known Limitations
 
