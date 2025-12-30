@@ -43,3 +43,4 @@ Thumbs.db
 # Project specific
 *.pyc
 .cache/
+gui_app.py

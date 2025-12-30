@@ -127,42 +127,112 @@ def create_ip_display(ip_address):
     return img
 
 def render_1d_simulation(x, u):
-    """Render 1D simulation as a line plot"""
+    """Render 1D simulation as a line plot with axis labels"""
     img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
     draw = ImageDraw.Draw(img)
     
+    # Try to load font for axis labels
+    try:
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+    except:
+        font_small = ImageFont.load_default()
+        font_title = ImageFont.load_default()
+    
+    # Define margins to make room for labels
+    margin_left = 35
+    margin_bottom = 30
+    margin_top = 25
+    margin_right = 15
+    
+    plot_width = DISPLAY_WIDTH - margin_left - margin_right
+    plot_height = DISPLAY_HEIGHT - margin_top - margin_bottom
+    
     # Normalize u to display range
-    u_min, u_max = u.min(), u.max()
-    if u_max - u_min > 1e-10:
-        u_norm = (u - u_min) / (u_max - u_min)
-    else:
-        u_norm = np.zeros_like(u)
+    u_min, u_max = 0, u.max() if u.max() > 1e-10 else 1
+    u_norm = u / u_max if u_max > 1e-10 else np.zeros_like(u)
     
     # Scale to display coordinates
-    margin = 20
-    plot_height = DISPLAY_HEIGHT - 2 * margin
-    
     points = []
     for i, val in enumerate(u_norm):
-        x_pos = margin + i * (DISPLAY_WIDTH - 2 * margin) / len(u_norm)
-        y_pos = DISPLAY_HEIGHT - margin - val * plot_height
+        x_pos = margin_left + i * plot_width / len(u_norm)
+        y_pos = DISPLAY_HEIGHT - margin_bottom - val * plot_height
         points.append((x_pos, y_pos))
+    
+    # Fill area under curve
+    if len(points) > 1:
+        fill_points = [(margin_left, DISPLAY_HEIGHT - margin_bottom)]
+        fill_points.extend(points)
+        fill_points.append((margin_left + plot_width, DISPLAY_HEIGHT - margin_bottom))
+        draw.polygon(fill_points, fill=(34, 211, 238, 50))
     
     # Draw line plot
     if len(points) > 1:
         draw.line(points, fill=(34, 211, 238), width=2)
     
     # Draw axes
-    draw.line([(margin, DISPLAY_HEIGHT - margin), 
-               (DISPLAY_WIDTH - margin, DISPLAY_HEIGHT - margin)], 
-              fill=(148, 163, 184), width=1)
-    draw.line([(margin, margin), (margin, DISPLAY_HEIGHT - margin)], 
-              fill=(148, 163, 184), width=1)
+    axis_color = (148, 163, 184)
+    # X-axis
+    draw.line([(margin_left, DISPLAY_HEIGHT - margin_bottom), 
+               (DISPLAY_WIDTH - margin_right, DISPLAY_HEIGHT - margin_bottom)], 
+              fill=axis_color, width=1)
+    # Y-axis
+    draw.line([(margin_left, margin_top), (margin_left, DISPLAY_HEIGHT - margin_bottom)], 
+              fill=axis_color, width=1)
+    
+    # X-axis tick marks and labels
+    L = x[-1] if len(x) > 0 else 1.0
+    num_x_ticks = 5
+    for i in range(num_x_ticks + 1):
+        x_val = L * i / num_x_ticks
+        x_pos = margin_left + plot_width * i / num_x_ticks
+        # Tick mark
+        draw.line([(x_pos, DISPLAY_HEIGHT - margin_bottom), 
+                   (x_pos, DISPLAY_HEIGHT - margin_bottom + 3)], fill=axis_color, width=1)
+        # Label
+        label = f"{x_val:.1f}" if x_val < 10 else f"{int(x_val)}"
+        draw.text((x_pos, DISPLAY_HEIGHT - margin_bottom + 5), label, 
+                  fill=axis_color, anchor="mt", font=font_small)
+    
+    # Y-axis tick marks and labels
+    num_y_ticks = 4
+    for i in range(num_y_ticks + 1):
+        y_val = u_max * i / num_y_ticks
+        y_pos = DISPLAY_HEIGHT - margin_bottom - plot_height * i / num_y_ticks
+        # Tick mark
+        draw.line([(margin_left - 3, y_pos), (margin_left, y_pos)], fill=axis_color, width=1)
+        # Label
+        label = f"{y_val:.1f}" if y_val < 10 else f"{int(y_val)}"
+        draw.text((margin_left - 5, y_pos), label, fill=axis_color, anchor="rm", font=font_small)
+    
+    # Axis labels
+    draw.text((DISPLAY_WIDTH // 2, DISPLAY_HEIGHT - 5), "x", fill=axis_color, anchor="mb", font=font_small)
+    draw.text((8, DISPLAY_HEIGHT // 2), "U", fill=axis_color, anchor="mm", font=font_small)
+    
+    # Title
+    draw.text((DISPLAY_WIDTH // 2, 8), "1D Diffusion", fill=(255, 255, 255), anchor="mt", font=font_title)
     
     return img
 
-def render_2d_simulation(u):
-    """Render 2D simulation as a heatmap"""
+def render_2d_simulation(u, L=1.0):
+    """Render 2D simulation as a heatmap with axis labels"""
+    # Try to load font for axis labels
+    try:
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+    except:
+        font_small = ImageFont.load_default()
+        font_title = ImageFont.load_default()
+    
+    # Define margins to make room for labels
+    margin_left = 30
+    margin_bottom = 25
+    margin_top = 22
+    margin_right = 10
+    
+    plot_width = DISPLAY_WIDTH - margin_left - margin_right
+    plot_height = DISPLAY_HEIGHT - margin_top - margin_bottom
+    
     # Normalize to 0-255 range
     u_min, u_max = u.min(), u.max()
     if u_max - u_min > 1e-10:
@@ -171,15 +241,15 @@ def render_2d_simulation(u):
         u_norm = np.zeros_like(u, dtype=np.uint8)
     
     # Create grayscale image
-    img = Image.fromarray(u_norm, mode='L')
+    img_heat = Image.fromarray(u_norm, mode='L')
     
     # Convert to RGB with color map (cyan gradient)
-    img_rgb = Image.new('RGB', img.size)
-    pixels = img.load()
-    pixels_rgb = img_rgb.load()
+    img_heat_rgb = Image.new('RGB', img_heat.size)
+    pixels = img_heat.load()
+    pixels_rgb = img_heat_rgb.load()
     
-    for i in range(img.size[0]):
-        for j in range(img.size[1]):
+    for i in range(img_heat.size[0]):
+        for j in range(img_heat.size[1]):
             val = pixels[i, j]
             # Gradient from dark blue to cyan
             r = int(val * 34 / 255)
@@ -187,10 +257,55 @@ def render_2d_simulation(u):
             b = int(val * 238 / 255 + (255 - val) * 15 / 255)
             pixels_rgb[i, j] = (r, g, b)
     
-    # Resize to display size
-    img_rgb = img_rgb.resize((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+    # Resize heatmap to fit in plot area
+    img_heat_rgb = img_heat_rgb.resize((plot_width, plot_height))
     
-    return img_rgb
+    # Create final image with margins for labels
+    img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
+    img.paste(img_heat_rgb, (margin_left, margin_top))
+    
+    draw = ImageDraw.Draw(img)
+    axis_color = (148, 163, 184)
+    
+    # Draw border around heatmap
+    draw.rectangle([(margin_left, margin_top), 
+                    (margin_left + plot_width, margin_top + plot_height)], 
+                   outline=axis_color, width=1)
+    
+    # X-axis tick marks and labels
+    num_x_ticks = 4
+    for i in range(num_x_ticks + 1):
+        x_val = L * i / num_x_ticks
+        x_pos = margin_left + plot_width * i / num_x_ticks
+        # Tick mark
+        draw.line([(x_pos, margin_top + plot_height), 
+                   (x_pos, margin_top + plot_height + 3)], fill=axis_color, width=1)
+        # Label
+        label = f"{x_val:.1f}" if x_val < 10 else f"{int(x_val)}"
+        draw.text((x_pos, margin_top + plot_height + 5), label, 
+                  fill=axis_color, anchor="mt", font=font_small)
+    
+    # Y-axis tick marks and labels
+    num_y_ticks = 4
+    for i in range(num_y_ticks + 1):
+        y_val = L * i / num_y_ticks
+        y_pos = margin_top + plot_height - plot_height * i / num_y_ticks
+        # Tick mark
+        draw.line([(margin_left - 3, y_pos), (margin_left, y_pos)], fill=axis_color, width=1)
+        # Label
+        label = f"{y_val:.1f}" if y_val < 10 else f"{int(y_val)}"
+        draw.text((margin_left - 5, y_pos), label, fill=axis_color, anchor="rm", font=font_small)
+    
+    # Axis labels
+    draw.text((margin_left + plot_width // 2, DISPLAY_HEIGHT - 3), "x", 
+              fill=axis_color, anchor="mb", font=font_small)
+    draw.text((5, margin_top + plot_height // 2), "y", 
+              fill=axis_color, anchor="mm", font=font_small)
+    
+    # Title
+    draw.text((DISPLAY_WIDTH // 2, 5), "2D Diffusion", fill=(255, 255, 255), anchor="mt", font=font_title)
+    
+    return img
 
 # ============================================================================
 # Display Thread
@@ -247,7 +362,7 @@ def display_thread():
                 img = render_1d_simulation(x, u)
             else:  # 2D
                 u = simulate_2d(params['L'], params['M'], params['D'], t_sim)
-                img = render_2d_simulation(u)
+                img = render_2d_simulation(u, params['L'])
         
         # Display image
         if DISPLAY_AVAILABLE and display_instance:
