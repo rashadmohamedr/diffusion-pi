@@ -133,23 +133,23 @@ def render_1d_simulation(x, u):
     
     # Try to load font for axis labels
     try:
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
     except:
         font_small = ImageFont.load_default()
         font_title = ImageFont.load_default()
     
     # Define margins to make room for labels
-    margin_left = 35
-    margin_bottom = 30
-    margin_top = 25
+    margin_left = 38
+    margin_bottom = 32
+    margin_top = 28
     margin_right = 15
     
     plot_width = DISPLAY_WIDTH - margin_left - margin_right
     plot_height = DISPLAY_HEIGHT - margin_top - margin_bottom
     
-    # Normalize u to display range
-    u_min, u_max = 0, u.max() if u.max() > 1e-10 else 1
+    # Get actual max value for Y-axis
+    u_max = u.max() if u.max() > 1e-10 else 1.0
     u_norm = u / u_max if u_max > 1e-10 else np.zeros_like(u)
     
     # Scale to display coordinates
@@ -189,8 +189,15 @@ def render_1d_simulation(x, u):
         # Tick mark
         draw.line([(x_pos, DISPLAY_HEIGHT - margin_bottom), 
                    (x_pos, DISPLAY_HEIGHT - margin_bottom + 3)], fill=axis_color, width=1)
-        # Label
-        label = f"{x_val:.1f}" if x_val < 10 else f"{int(x_val)}"
+        # Label - format based on value magnitude
+        if x_val == 0:
+            label = "0"
+        elif x_val >= 10:
+            label = f"{int(x_val)}"
+        elif x_val >= 1:
+            label = f"{x_val:.1f}"
+        else:
+            label = f"{x_val:.2f}"
         draw.text((x_pos, DISPLAY_HEIGHT - margin_bottom + 5), label, 
                   fill=axis_color, anchor="mt", font=font_small)
     
@@ -201,8 +208,15 @@ def render_1d_simulation(x, u):
         y_pos = DISPLAY_HEIGHT - margin_bottom - plot_height * i / num_y_ticks
         # Tick mark
         draw.line([(margin_left - 3, y_pos), (margin_left, y_pos)], fill=axis_color, width=1)
-        # Label
-        label = f"{y_val:.1f}" if y_val < 10 else f"{int(y_val)}"
+        # Label - format based on value magnitude
+        if y_val == 0:
+            label = "0"
+        elif y_val >= 10:
+            label = f"{int(y_val)}"
+        elif y_val >= 1:
+            label = f"{y_val:.1f}"
+        else:
+            label = f"{y_val:.2f}"
         draw.text((margin_left - 5, y_pos), label, fill=axis_color, anchor="rm", font=font_small)
     
     # Axis labels
@@ -218,16 +232,16 @@ def render_2d_simulation(u, L=1.0):
     """Render 2D simulation as a heatmap with axis labels"""
     # Try to load font for axis labels
     try:
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
     except:
         font_small = ImageFont.load_default()
         font_title = ImageFont.load_default()
     
     # Define margins to make room for labels
-    margin_left = 30
-    margin_bottom = 25
-    margin_top = 22
+    margin_left = 35
+    margin_bottom = 30
+    margin_top = 26
     margin_right = 10
     
     plot_width = DISPLAY_WIDTH - margin_left - margin_right
@@ -280,8 +294,15 @@ def render_2d_simulation(u, L=1.0):
         # Tick mark
         draw.line([(x_pos, margin_top + plot_height), 
                    (x_pos, margin_top + plot_height + 3)], fill=axis_color, width=1)
-        # Label
-        label = f"{x_val:.1f}" if x_val < 10 else f"{int(x_val)}"
+        # Label - format based on value magnitude
+        if x_val == 0:
+            label = "0"
+        elif x_val >= 10:
+            label = f"{int(x_val)}"
+        elif x_val >= 1:
+            label = f"{x_val:.1f}"
+        else:
+            label = f"{x_val:.2f}"
         draw.text((x_pos, margin_top + plot_height + 5), label, 
                   fill=axis_color, anchor="mt", font=font_small)
     
@@ -292,8 +313,15 @@ def render_2d_simulation(u, L=1.0):
         y_pos = margin_top + plot_height - plot_height * i / num_y_ticks
         # Tick mark
         draw.line([(margin_left - 3, y_pos), (margin_left, y_pos)], fill=axis_color, width=1)
-        # Label
-        label = f"{y_val:.1f}" if y_val < 10 else f"{int(y_val)}"
+        # Label - format based on value magnitude
+        if y_val == 0:
+            label = "0"
+        elif y_val >= 10:
+            label = f"{int(y_val)}"
+        elif y_val >= 1:
+            label = f"{y_val:.1f}"
+        else:
+            label = f"{y_val:.2f}"
         draw.text((margin_left - 5, y_pos), label, fill=axis_color, anchor="rm", font=font_small)
     
     # Axis labels
