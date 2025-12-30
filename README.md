@@ -102,13 +102,15 @@ pip3 install -r requirements.txt
 
 ### 3️⃣ Configure ST7789 Display
 
-**Default GPIO Pins:**
-- **MOSI:** GPIO 10 (Pin 19)
-- **SCLK:** GPIO 11 (Pin 23)
-- **CS:** GPIO 8 (Pin 24) or GPIO 7 (Pin 26)
-- **DC:** GPIO 9 (Pin 21)
-- **RST:** GPIO 25 (Pin 22)
-- **Backlight:** 3.3V (Pin 1) or GPIO
+**Suggested Wiring (BCM numbering):**
+- **VCC:** 3.3V
+- **GND:** GND
+- **SCLK:** GPIO11 (SCLK / SPI0_SCLK)
+- **MOSI:** GPIO10 (MOSI / SPI0_MOSI)
+- **CS / CE0:** GPIO8 (CE0 / SPI0_CE0_N)
+- **DC (Data/Command):** GPIO24
+- **RST (Reset):** GPIO25
+- **BL (Backlight):** 3.3V or GPIO18 for PWM control
 
 If your wiring differs, edit `main.py`:
 
@@ -118,9 +120,9 @@ display_instance = ST7789.ST7789(
     width=240,
     rotation=0,
     port=0,
-    cs=1,        # Change CS pin if needed
-    dc=9,        # Change DC pin if needed
-    backlight=None,
+    cs=ST7789.BG_SPI_CS_FRONT,  # GPIO8 (CE0)
+    dc=24,                       # DC pin (GPIO24)
+    backlight=18,                # Backlight pin (GPIO18) or None
     spi_speed_hz=80 * 1000 * 1000
 )
 ```

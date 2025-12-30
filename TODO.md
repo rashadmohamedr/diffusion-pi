@@ -21,9 +21,10 @@
    chmod +x install.sh
    ```
 
-2. **GPIO Configuration:**
+2. **GPIO Configuration (BCM numbering):**
    - Verify your ST7789 display pins match the defaults
-   - Default: DC=GPIO9, RST=GPIO25, CS=GPIO8
+   - Default: DC=GPIO24, RST=GPIO25, CS=GPIO8 (CE0)
+   - SCLK=GPIO11, MOSI=GPIO10, BL=3.3V or GPIO18
    - Edit `main.py` if your wiring is different
 
 3. **SPI Must Be Enabled:**
@@ -38,11 +39,11 @@
 display_instance = ST7789.ST7789(
     height=240,
     width=240,
-    rotation=0,      # Rotate if display is upside down
-    port=0,          # SPI port
-    cs=1,            # CS pin
-    dc=9,            # DC pin (GPIO 9)
-    backlight=None,  # Or GPIO pin number for dimming
+    rotation=0,                   # Rotate if display is upside down
+    port=0,                       # SPI port
+    cs=ST7789.BG_SPI_CS_FRONT,    # GPIO8 (CE0)
+    dc=24,                        # DC pin (GPIO24)
+    backlight=18,                 # GPIO18 for PWM, or None
     spi_speed_hz=80 * 1000 * 1000
 )
 ```

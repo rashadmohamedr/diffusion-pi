@@ -203,9 +203,9 @@ def display_thread():
             width=DISPLAY_WIDTH,
             rotation=0,
             port=0,
-            cs=1,
-            dc=9,
-            backlight=None,
+            cs=ST7789.BG_SPI_CS_FRONT,  # GPIO8 (CE0)
+            dc=24,                       # DC pin (GPIO24)
+            backlight=18,                # GPIO18 for PWM control
             spi_speed_hz=80 * 1000 * 1000
         )
     
