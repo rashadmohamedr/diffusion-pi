@@ -332,26 +332,31 @@
         function selectFieldView(view) {
             currentFieldView = view;
             updateFieldViewButtons();
+            applyParameters();
         }
 
         document.getElementById('param-radius').addEventListener('input', function(e) {
             document.getElementById('value-radius').textContent = e.target.value + ' mm';
             updateSliderBackground(e.target);
+            applyParameters();
         });
 
         document.getElementById('param-frequency').addEventListener('input', function(e) {
             document.getElementById('value-frequency').textContent = e.target.value + ' GHz';
             updateSliderBackground(e.target);
+            applyParameters();
         });
 
         document.getElementById('param-epsilon').addEventListener('input', function(e) {
             document.getElementById('value-epsilon').textContent = parseFloat(e.target.value).toFixed(1);
             updateSliderBackground(e.target);
+            applyParameters();
         });
 
         document.getElementById('param-mu').addEventListener('input', function(e) {
             document.getElementById('value-mu').textContent = parseFloat(e.target.value).toFixed(1);
             updateSliderBackground(e.target);
+            applyParameters();
         });
 
         function updateSliderBackground(slider) {
