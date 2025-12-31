@@ -260,33 +260,46 @@ def render_field_distribution(theta, E_r, H_r, wg_params, field_view='e_only'):
     draw.line([(center_x, cy - max_radius - 10), (center_x, cy + max_radius + 10)], 
               fill=axis_color, width=2)
     
-    # Add axis labels
-    draw.text((center_x + max_radius + 15, cy), "x", fill=axis_color, anchor="lm", font=font_small)
-    draw.text((center_x, cy - max_radius - 15), "y", fill=axis_color, anchor="mb", font=font_small)
+    # Add axis labels with units
+    draw.text((center_x + max_radius + 15, cy), "x (mm)", fill=axis_color, anchor="lm", font=font_tiny)
+    draw.text((center_x, cy - max_radius - 15), "y (mm)", fill=axis_color, anchor="mb", font=font_tiny)
     
-    # Add tick marks and values on axes
+    # Get physical radius in mm
+    radius_mm = wg_params['radius'] * 1000  # Convert from meters to mm
+    
+    # Add tick marks and values on axes (showing physical dimensions)
     for i, frac in enumerate([0.5, 1.0]):
-        tick_val = frac
+        # Physical dimension value in mm
+        tick_val_mm = radius_mm * frac
         tick_pos = int(max_radius * frac)
+        
+        # Format the tick value based on magnitude
+        if tick_val_mm >= 10:
+            label = f"{tick_val_mm:.0f}"
+        elif tick_val_mm >= 1:
+            label = f"{tick_val_mm:.1f}"
+        else:
+            label = f"{tick_val_mm:.2f}"
+        
         # Right side
         draw.line([(center_x + tick_pos, cy - 3), (center_x + tick_pos, cy + 3)], 
                   fill=axis_color, width=1)
-        draw.text((center_x + tick_pos, cy + 8), f"{tick_val:.1f}", 
+        draw.text((center_x + tick_pos, cy + 8), label, 
                   fill=axis_color, anchor="mt", font=font_tiny)
         # Left side
         draw.line([(center_x - tick_pos, cy - 3), (center_x - tick_pos, cy + 3)], 
                   fill=axis_color, width=1)
-        draw.text((center_x - tick_pos, cy + 8), f"{-tick_val:.1f}", 
+        draw.text((center_x - tick_pos, cy + 8), f"-{label}", 
                   fill=axis_color, anchor="mt", font=font_tiny)
         # Top
         draw.line([(center_x - 3, cy - tick_pos), (center_x + 3, cy - tick_pos)], 
                   fill=axis_color, width=1)
-        draw.text((center_x - 8, cy - tick_pos), f"{tick_val:.1f}", 
+        draw.text((center_x - 8, cy - tick_pos), label, 
                   fill=axis_color, anchor="rm", font=font_tiny)
         # Bottom
         draw.line([(center_x - 3, cy + tick_pos), (center_x + 3, cy + tick_pos)], 
                   fill=axis_color, width=1)
-        draw.text((center_x - 8, cy + tick_pos), f"{-tick_val:.1f}", 
+        draw.text((center_x - 8, cy + tick_pos), f"-{label}", 
                   fill=axis_color, anchor="rm", font=font_tiny)
     
     # Plot field based on view
