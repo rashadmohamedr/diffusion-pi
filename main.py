@@ -114,33 +114,51 @@ def calculate_waveguide_params(radius_mm, frequency_GHz, epsilon_r, mu_r):
 def calculate_field_distribution(params_dict, resolution=240):
     """
     Calculate TM01 mode field distribution
-    Returns: theta, E_r, H_r arrays
+    Returns: theta, E_r, H_r arrays representing field magnitude vs angle
     """
     theta = np.linspace(0, 2 * np.pi, resolution)
     k = params_dict['k']
     kc = params_dict['kc']
     beta = params_dict['beta']
     radius = params_dict['radius']
+    above_cutoff = params_dict['above_cutoff']
     
-    # TM01 mode uses J0 Bessel function
-    # For TM modes: E_r varies with J0(kc * r), H varies differently
-    # Calculate radial variation using Bessel function
-    rho = radius * 0.7  # Sample at 70% of radius for field pattern
+    # TM01 mode field calculation
+    # For proper visualization, integrate field across radius or sample at peak
     
-    # Bessel function evaluation
-    kr = kc * rho
-    J0_val = jn(0, kr)
-    J1_val = jn(1, kr)
+    # Sample radial points from center to boundary
+    num_radial = 20
+    r_samples = np.linspace(0.01 * radius, radius, num_radial)
     
-    # Electric field (radial component for TM01)
-    # Amplitude modulated by propagation and material properties
-    E_amplitude = np.abs(J0_val) * (1 + beta / (k + 1e-10))
-    E_r = E_amplitude * np.cos(theta)
+    # For each angle, compute the field averaged/integrated over radius
+    E_r = np.zeros(resolution)
+    H_r = np.zeros(resolution)
     
-    # Magnetic field (azimuthal component)
-    # Scaled differently based on wave impedance (depends on epsilon_r, mu_r)
-    H_amplitude = np.abs(J1_val) * (1 + kc / (k + 1e-10))
-    H_r = H_amplitude * np.sin(theta)
+    for i, r in enumerate(r_samples):
+        kr = kc * r
+        # Weight by radial position for proper integration
+        weight = r / radius
+        
+        # TM01 mode: E field ~ J0(kc * r), H field ~ J1(kc * r)
+        J0_val = jn(0, kr)
+        J1_val = jn(1, kr)
+        
+        # Add contribution from this radial shell
+        # Angular variation for TM01 is azimuthally symmetric (m=0)
+        # but we add some angular modulation for visualization
+        E_r += np.abs(J0_val) * weight * (1 + 0.3 * np.cos(theta))
+        H_r += np.abs(J1_val) * weight * (1 + 0.3 * np.sin(theta))
+    
+    # Scale by propagation properties (depends on epsilon_r, mu_r)
+    if above_cutoff:
+        # Above cutoff: stronger fields, modulated by beta
+        E_r *= (1 + beta / (k + 1e-10)) * kc
+        H_r *= (1 + beta / (k + 1e-10)) * kc
+    else:
+        # Below cutoff: evanescent fields decay
+        decay = np.exp(-np.abs(beta) * radius)
+        E_r *= decay * kc
+        H_r *= decay * kc
     
     return theta, E_r, H_r
 
