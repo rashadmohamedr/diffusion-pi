@@ -41,11 +41,11 @@ C_LIGHT = 3e8  # Speed of light in m/s
 
 # Simulation defaults
 DEFAULT_PARAMS = {
-    'mode': 'field',    # 'field', 'bessel', 'cutoff', 'radial'
-    'radius': 20.0,     # Waveguide radius in mm
-    'frequency': 10.0,  # Frequency in GHz
-    'epsilon_r': 1.0,   # Relative permittivity
-    'mu_r': 1.0,        # Relative permeability
+    'field_view': 'both',  # 'both', 'e_only', 'h_only'
+    'radius': 20.0,        # Waveguide radius in mm
+    'frequency': 10.0,     # Frequency in GHz
+    'epsilon_r': 1.0,      # Relative permittivity
+    'mu_r': 1.0,           # Relative permeability
     'running': True
 }
 
@@ -174,7 +174,7 @@ def create_ip_display(ip_address):
     
     return img
 
-def render_field_distribution(theta, E_r, H_r, wg_params):
+def render_field_distribution(theta, E_r, H_r, wg_params, field_view='both'):
     """Render electric and magnetic field distributions in polar form"""
     img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
     draw = ImageDraw.Draw(img)
@@ -192,13 +192,21 @@ def render_field_distribution(theta, E_r, H_r, wg_params):
     above_cutoff = wg_params['above_cutoff']
     status = "✓" if above_cutoff else "✗"
     color = (34, 211, 238) if above_cutoff else (239, 68, 68)
-    draw.text((120, 5), f"{status} TM01 Field", fill=color, anchor="mt", font=font_title)
     
-    # Create two circular plots (E and H fields)
-    center_y1 = 72
-    center_y2 = 168
-    center_x = 120
-    max_radius = 42
+    if field_view == 'both':
+        draw.text((120, 5), f"{status} TM01 Field", fill=color, anchor="mt", font=font_title)
+        # Two circular plots
+        center_y1 = 72
+        center_y2 = 168
+        center_x = 120
+        max_radius = 42
+    else:
+        # Single larger plot
+        field_name = "|E|" if field_view == 'e_only' else "|H|"
+        draw.text((120, 5), f"{status} {field_name}", fill=color, anchor="mt", font=font_title)
+        center_y1 = 120
+        center_x = 120
+        max_radius = 85
     
     # Normalize fields
     E_norm = np.abs(E_r)
@@ -206,62 +214,71 @@ def render_field_distribution(theta, E_r, H_r, wg_params):
     E_max = E_norm.max() if E_norm.max() > 1e-10 else 1.0
     H_max = H_norm.max() if H_norm.max() > 1e-10 else 1.0
     
-    # Draw circular grid for E field (top)
     grid_color = (148, 163, 184, 80)
-    for r_frac in [0.5, 1.0]:
-        r_grid = int(max_radius * r_frac)
-        draw.ellipse([(center_x - r_grid, center_y1 - r_grid), 
-                      (center_x + r_grid, center_y1 + r_grid)], 
-                     outline=grid_color, width=1)
-    # Draw angle markers (0°, 90°, 180°, 270°)
-    for angle_deg in [0, 90, 180, 270]:
-        angle_rad = np.radians(angle_deg)
-        x_end = center_x + (max_radius + 5) * np.cos(angle_rad)
-        y_end = center_y1 - (max_radius + 5) * np.sin(angle_rad)
-        draw.line([(center_x, center_y1), (x_end, y_end)], fill=grid_color, width=1)
-        if angle_deg == 0:
-            draw.text((x_end + 8, y_end), "0°", fill=(148, 163, 184), anchor="lm", font=font_tiny)
     
-    # Draw E field (top)
-    points_e = []
-    for i, t in enumerate(theta):
-        r = (E_norm[i] / E_max) * max_radius
-        x = center_x + r * np.cos(t)
-        y = center_y1 - r * np.sin(t)
-        points_e.append((x, y))
+    # Draw E field
+    if field_view in ['both', 'e_only']:
+        cy = center_y1
+        # Draw circular grid
+        for r_frac in [0.5, 1.0]:
+            r_grid = int(max_radius * r_frac)
+            draw.ellipse([(center_x - r_grid, cy - r_grid), 
+                          (center_x + r_grid, cy + r_grid)], 
+                         outline=grid_color, width=1)
+        # Draw angle markers
+        for angle_deg in [0, 90, 180, 270]:
+            angle_rad = np.radians(angle_deg)
+            x_end = center_x + (max_radius + 5) * np.cos(angle_rad)
+            y_end = cy - (max_radius + 5) * np.sin(angle_rad)
+            draw.line([(center_x, cy), (x_end, y_end)], fill=grid_color, width=1)
+            if angle_deg == 0 and field_view != 'e_only':
+                draw.text((x_end + 8, y_end), "0°", fill=(148, 163, 184), anchor="lm", font=font_tiny)
+        
+        # Plot E field
+        points_e = []
+        for i, t in enumerate(theta):
+            r = (E_norm[i] / E_max) * max_radius
+            x = center_x + r * np.cos(t)
+            y = cy - r * np.sin(t)
+            points_e.append((x, y))
+        
+        if len(points_e) > 1:
+            draw.polygon(points_e, fill=(34, 211, 238, 50), outline=(34, 211, 238), width=2)
+        
+        # E label
+        label_offset = 18 if field_view == 'e_only' else 15
+        draw.text((120, cy - max_radius - label_offset), "|E|", fill=(34, 211, 238), anchor="mm", font=font_small)
     
-    if len(points_e) > 1:
-        draw.polygon(points_e, fill=(34, 211, 238, 50), outline=(34, 211, 238), width=2)
-    
-    # E label
-    draw.text((120, center_y1 - max_radius - 15), "|E|", fill=(34, 211, 238), anchor="mm", font=font_small)
-    
-    # Draw circular grid for H field (bottom)
-    for r_frac in [0.5, 1.0]:
-        r_grid = int(max_radius * r_frac)
-        draw.ellipse([(center_x - r_grid, center_y2 - r_grid), 
-                      (center_x + r_grid, center_y2 + r_grid)], 
-                     outline=grid_color, width=1)
-    # Draw angle markers
-    for angle_deg in [0, 90, 180, 270]:
-        angle_rad = np.radians(angle_deg)
-        x_end = center_x + (max_radius + 5) * np.cos(angle_rad)
-        y_end = center_y2 - (max_radius + 5) * np.sin(angle_rad)
-        draw.line([(center_x, center_y2), (x_end, y_end)], fill=grid_color, width=1)
-    
-    # Draw H field (bottom)
-    points_h = []
-    for i, t in enumerate(theta):
-        r = (H_norm[i] / H_max) * max_radius
-        x = center_x + r * np.cos(t)
-        y = center_y2 - r * np.sin(t)
-        points_h.append((x, y))
-    
-    if len(points_h) > 1:
-        draw.polygon(points_h, fill=(239, 68, 68, 50), outline=(239, 68, 68), width=2)
-    
-    # H label
-    draw.text((120, center_y2 + max_radius + 12), "|H|", fill=(239, 68, 68), anchor="mm", font=font_small)
+    # Draw H field
+    if field_view in ['both', 'h_only']:
+        cy = center_y2 if field_view == 'both' else center_y1
+        # Draw circular grid
+        for r_frac in [0.5, 1.0]:
+            r_grid = int(max_radius * r_frac)
+            draw.ellipse([(center_x - r_grid, cy - r_grid), 
+                          (center_x + r_grid, cy + r_grid)], 
+                         outline=grid_color, width=1)
+        # Draw angle markers
+        for angle_deg in [0, 90, 180, 270]:
+            angle_rad = np.radians(angle_deg)
+            x_end = center_x + (max_radius + 5) * np.cos(angle_rad)
+            y_end = cy - (max_radius + 5) * np.sin(angle_rad)
+            draw.line([(center_x, cy), (x_end, y_end)], fill=grid_color, width=1)
+        
+        # Plot H field
+        points_h = []
+        for i, t in enumerate(theta):
+            r = (H_norm[i] / H_max) * max_radius
+            x = center_x + r * np.cos(t)
+            y = cy - r * np.sin(t)
+            points_h.append((x, y))
+        
+        if len(points_h) > 1:
+            draw.polygon(points_h, fill=(239, 68, 68, 50), outline=(239, 68, 68), width=2)
+        
+        # H label
+        label_offset = 18 if field_view == 'h_only' else 12
+        draw.text((120, cy + max_radius + label_offset), "|H|", fill=(239, 68, 68), anchor="mm", font=font_small)
     
     return img
 
@@ -678,20 +695,9 @@ def display_thread():
                 params['epsilon_r'], params['mu_r']
             )
             
-            # Choose visualization based on mode
-            if params['mode'] == 'field':
-                theta, E_r, H_r = calculate_field_distribution(wg_params)
-                img = render_field_distribution(theta, E_r, H_r, wg_params)
-            elif params['mode'] == 'bessel':
-                img = render_bessel_functions()
-            elif params['mode'] == 'cutoff':
-                img = render_cutoff_analysis(wg_params)
-            elif params['mode'] == 'radial':
-                img = render_radial_profile(wg_params)
-            else:
-                # Default to field distribution
-                theta, E_r, H_r = calculate_field_distribution(wg_params)
-                img = render_field_distribution(theta, E_r, H_r, wg_params)
+            # Render field distribution with specified view
+            theta, E_r, H_r = calculate_field_distribution(wg_params)
+            img = render_field_distribution(theta, E_r, H_r, wg_params, params.get('field_view', 'both'))
         
         # Display image
         if DISPLAY_AVAILABLE and display_instance:
@@ -720,8 +726,8 @@ def api_params():
     if request.method == 'POST':
         data = request.json
         with state_lock:
-            if 'mode' in data:
-                simulation_state['mode'] = data['mode']
+            if 'field_view' in data:
+                simulation_state['field_view'] = data['field_view']
             if 'radius' in data:
                 simulation_state['radius'] = float(data['radius'])
             if 'frequency' in data:

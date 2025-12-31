@@ -251,13 +251,12 @@
         </div>
 
         <div class="control-panel">
-            <h2 class="section-title">Visualization Mode</h2>
+            <h2 class="section-title">Field Display</h2>
             
             <div class="mode-selector">
-                <button class="mode-btn" id="btn-field" onclick="selectMode('field')">Field</button>
-                <button class="mode-btn" id="btn-bessel" onclick="selectMode('bessel')">Bessel</button>
-                <button class="mode-btn" id="btn-cutoff" onclick="selectMode('cutoff')">Cutoff</button>
-                <button class="mode-btn" id="btn-radial" onclick="selectMode('radial')">Radial</button>
+                <button class="mode-btn" id="btn-both" onclick="selectFieldView('both')">Both</button>
+                <button class="mode-btn" id="btn-e-only" onclick="selectFieldView('e_only')">E Field</button>
+                <button class="mode-btn" id="btn-h-only" onclick="selectFieldView('h_only')">H Field</button>
             </div>
 
             <h2 class="section-title">Waveguide Parameters</h2>
@@ -298,8 +297,8 @@
             <h2 class="section-title">Current Configuration</h2>
             <div class="info-grid">
                 <div class="info-card">
-                    <div class="info-card-title">Mode</div>
-                    <div class="info-card-value" id="current-mode">{{ params.mode }}</div>
+                    <div class="info-card-title">View</div>
+                    <div class="info-card-value" id="current-view">{{ params.field_view }}</div>
                 </div>
                 <div class="info-card">
                     <div class="info-card-title">Radius</div>
@@ -322,18 +321,18 @@
     </div>
 
     <script>
-        let currentMode = '{{ params.mode }}';
+        let currentFieldView = '{{ params.field_view }}';
 
-        function updateModeButtons() {
-            ['field', 'bessel', 'cutoff', 'radial'].forEach(m => {
-                document.getElementById('btn-' + m).classList.remove('active');
+        function updateFieldViewButtons() {
+            ['both', 'e-only', 'h-only'].forEach(v => {
+                document.getElementById('btn-' + v).classList.remove('active');
             });
-            document.getElementById('btn-' + currentMode).classList.add('active');
+            document.getElementById('btn-' + currentFieldView.replace('_', '-')).classList.add('active');
         }
 
-        function selectMode(mode) {
-            currentMode = mode;
-            updateModeButtons();
+        function selectFieldView(view) {
+            currentFieldView = view;
+            updateFieldViewButtons();
         }
 
         document.getElementById('param-radius').addEventListener('input', function(e) {
@@ -365,7 +364,7 @@
 
         function applyParameters() {
             const params = {
-                mode: currentMode,
+                field_view: currentFieldView,
                 radius: parseFloat(document.getElementById('param-radius').value),
                 frequency: parseFloat(document.getElementById('param-frequency').value),
                 epsilon_r: parseFloat(document.getElementById('param-epsilon').value),
@@ -395,14 +394,14 @@
         }
 
         function updateCurrentConfig(p) {
-            document.getElementById('current-mode').textContent = p.mode;
+            document.getElementById('current-view').textContent = p.field_view;
             document.getElementById('current-radius').textContent = p.radius.toFixed(1) + ' mm';
             document.getElementById('current-frequency').textContent = p.frequency.toFixed(1) + ' GHz';
             document.getElementById('current-epsilon').textContent = p.epsilon_r.toFixed(1);
             document.getElementById('current-mu').textContent = p.mu_r.toFixed(1);
         }
 
-        updateModeButtons();
+        updateFieldViewButtons();
     </script>
 </body>
 </html>
