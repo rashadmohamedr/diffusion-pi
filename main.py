@@ -118,12 +118,29 @@ def calculate_field_distribution(params_dict, resolution=240):
     """
     theta = np.linspace(0, 2 * np.pi, resolution)
     k = params_dict['k']
+    kc = params_dict['kc']
     beta = params_dict['beta']
     radius = params_dict['radius']
     
-    # Electric and magnetic field patterns (simplified TM01)
-    E_r = (1 / (k + 1e-10)) * np.cos(beta * radius + 1e-10) * np.cos(theta)
-    H_r = (1 / (k + 1e-10)) * np.sin(beta * radius + 1e-10) * np.cos(theta)
+    # TM01 mode uses J0 Bessel function
+    # For TM modes: E_r varies with J0(kc * r), H varies differently
+    # Calculate radial variation using Bessel function
+    rho = radius * 0.7  # Sample at 70% of radius for field pattern
+    
+    # Bessel function evaluation
+    kr = kc * rho
+    J0_val = jn(0, kr)
+    J1_val = jn(1, kr)
+    
+    # Electric field (radial component for TM01)
+    # Amplitude modulated by propagation and material properties
+    E_amplitude = np.abs(J0_val) * (1 + beta / (k + 1e-10))
+    E_r = E_amplitude * np.cos(theta)
+    
+    # Magnetic field (azimuthal component)
+    # Scaled differently based on wave impedance (depends on epsilon_r, mu_r)
+    H_amplitude = np.abs(J1_val) * (1 + kc / (k + 1e-10))
+    H_r = H_amplitude * np.sin(theta)
     
     return theta, E_r, H_r
 
