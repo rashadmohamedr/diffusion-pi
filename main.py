@@ -180,29 +180,47 @@ def render_field_distribution(theta, E_r, H_r, wg_params):
     draw = ImageDraw.Draw(img)
     
     try:
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
+        font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 9)
     except:
         font_small = ImageFont.load_default()
         font_title = ImageFont.load_default()
+        font_tiny = ImageFont.load_default()
     
     # Title
     above_cutoff = wg_params['above_cutoff']
     status = "✓" if above_cutoff else "✗"
     color = (34, 211, 238) if above_cutoff else (239, 68, 68)
-    draw.text((120, 8), f"{status} TM01 Field", fill=color, anchor="mt", font=font_title)
+    draw.text((120, 5), f"{status} TM01 Field", fill=color, anchor="mt", font=font_title)
     
     # Create two circular plots (E and H fields)
-    center_y1 = 70
-    center_y2 = 165
+    center_y1 = 72
+    center_y2 = 168
     center_x = 120
-    max_radius = 45
+    max_radius = 42
     
     # Normalize fields
     E_norm = np.abs(E_r)
     H_norm = np.abs(H_r)
     E_max = E_norm.max() if E_norm.max() > 1e-10 else 1.0
     H_max = H_norm.max() if H_norm.max() > 1e-10 else 1.0
+    
+    # Draw circular grid for E field (top)
+    grid_color = (148, 163, 184, 80)
+    for r_frac in [0.5, 1.0]:
+        r_grid = int(max_radius * r_frac)
+        draw.ellipse([(center_x - r_grid, center_y1 - r_grid), 
+                      (center_x + r_grid, center_y1 + r_grid)], 
+                     outline=grid_color, width=1)
+    # Draw angle markers (0°, 90°, 180°, 270°)
+    for angle_deg in [0, 90, 180, 270]:
+        angle_rad = np.radians(angle_deg)
+        x_end = center_x + (max_radius + 5) * np.cos(angle_rad)
+        y_end = center_y1 - (max_radius + 5) * np.sin(angle_rad)
+        draw.line([(center_x, center_y1), (x_end, y_end)], fill=grid_color, width=1)
+        if angle_deg == 0:
+            draw.text((x_end + 8, y_end), "0°", fill=(148, 163, 184), anchor="lm", font=font_tiny)
     
     # Draw E field (top)
     points_e = []
@@ -216,7 +234,20 @@ def render_field_distribution(theta, E_r, H_r, wg_params):
         draw.polygon(points_e, fill=(34, 211, 238, 50), outline=(34, 211, 238), width=2)
     
     # E label
-    draw.text((120, center_y1 - max_radius - 12), "|E|", fill=(34, 211, 238), anchor="mm", font=font_small)
+    draw.text((120, center_y1 - max_radius - 15), "|E|", fill=(34, 211, 238), anchor="mm", font=font_small)
+    
+    # Draw circular grid for H field (bottom)
+    for r_frac in [0.5, 1.0]:
+        r_grid = int(max_radius * r_frac)
+        draw.ellipse([(center_x - r_grid, center_y2 - r_grid), 
+                      (center_x + r_grid, center_y2 + r_grid)], 
+                     outline=grid_color, width=1)
+    # Draw angle markers
+    for angle_deg in [0, 90, 180, 270]:
+        angle_rad = np.radians(angle_deg)
+        x_end = center_x + (max_radius + 5) * np.cos(angle_rad)
+        y_end = center_y2 - (max_radius + 5) * np.sin(angle_rad)
+        draw.line([(center_x, center_y2), (x_end, y_end)], fill=grid_color, width=1)
     
     # Draw H field (bottom)
     points_h = []
@@ -230,7 +261,7 @@ def render_field_distribution(theta, E_r, H_r, wg_params):
         draw.polygon(points_h, fill=(239, 68, 68, 50), outline=(239, 68, 68), width=2)
     
     # H label
-    draw.text((120, center_y2 + max_radius + 10), "|H|", fill=(239, 68, 68), anchor="mm", font=font_small)
+    draw.text((120, center_y2 + max_radius + 12), "|H|", fill=(239, 68, 68), anchor="mm", font=font_small)
     
     return img
 
@@ -240,14 +271,16 @@ def render_bessel_functions():
     draw = ImageDraw.Draw(img)
     
     try:
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
+        font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 9)
     except:
         font_small = ImageFont.load_default()
         font_title = ImageFont.load_default()
+        font_tiny = ImageFont.load_default()
     
     # Title
-    draw.text((120, 8), "Bessel Functions", fill=(255, 255, 255), anchor="mt", font=font_title)
+    draw.text((120, 5), "Bessel Functions", fill=(255, 255, 255), anchor="mt", font=font_title)
     
     # Calculate Bessel functions
     x, J0, J1, Y0, Y1, j0_zeros = calculate_bessel_functions(x_max=12, resolution=300)
@@ -268,6 +301,22 @@ def render_bessel_functions():
     axis_y = y_top + int(plot_height * 0.6 / (j_max - j_min))
     draw.line([(margin, axis_y), (DISPLAY_WIDTH - margin, axis_y)], 
               fill=(148, 163, 184), width=1)
+    # Y-axis
+    draw.line([(margin, y_top), (margin, y_top + plot_height)], 
+              fill=(148, 163, 184), width=1)
+    
+    # X-axis labels
+    for x_val in [0, 3, 6, 9, 12]:
+        x_pos = margin + (x_val / 12) * plot_width
+        draw.line([(x_pos, axis_y), (x_pos, axis_y + 3)], fill=(148, 163, 184), width=1)
+        draw.text((x_pos, axis_y + 5), str(x_val), fill=(148, 163, 184), anchor="mt", font=font_tiny)
+    
+    # Y-axis labels
+    for y_val in [-0.5, 0, 0.5, 1.0]:
+        y_pos = axis_y - ((y_val - 0) / (j_max - j_min)) * plot_height
+        if y_top <= y_pos <= y_top + plot_height:
+            draw.line([(margin - 3, y_pos), (margin, y_pos)], fill=(148, 163, 184), width=1)
+            draw.text((margin - 5, y_pos), f"{y_val:.1f}", fill=(148, 163, 184), anchor="rm", font=font_tiny)
     
     # Plot J0 (blue)
     points_j0 = []
@@ -290,8 +339,13 @@ def render_bessel_functions():
     # Mark first zero
     if len(j0_zeros) > 0:
         zero_x = margin + (j0_zeros[0] / 12) * plot_width
-        draw.line([(zero_x, y_top), (zero_x, y_top + plot_height)], 
-                  fill=(239, 68, 68), width=1, linestyle='dashed')
+        # Draw dashed line manually (PIL doesn't support linestyle)
+        dash_length = 5
+        y = y_top
+        while y < y_top + plot_height:
+            draw.line([(zero_x, y), (zero_x, min(y + dash_length, y_top + plot_height))], 
+                      fill=(239, 68, 68), width=1)
+            y += dash_length * 2
     
     # Labels
     draw.text((40, axis_y - 10), "J₀", fill=(34, 211, 238), anchor="mm", font=font_small)
@@ -310,16 +364,16 @@ def render_cutoff_analysis(wg_params):
     draw = ImageDraw.Draw(img)
     
     try:
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
-        font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 8)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
+        font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
     except:
         font_small = ImageFont.load_default()
         font_title = ImageFont.load_default()
         font_tiny = ImageFont.load_default()
     
     # Title
-    draw.text((120, 8), "Cutoff Analysis", fill=(255, 255, 255), anchor="mt", font=font_title)
+    draw.text((120, 5), "Cutoff Analysis", fill=(255, 255, 255), anchor="mt", font=font_title)
     
     # Get parameters
     fc_GHz = wg_params['fc'] / 1e9
@@ -384,14 +438,16 @@ def render_radial_profile(wg_params):
     draw = ImageDraw.Draw(img)
     
     try:
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
+        font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 9)
     except:
         font_small = ImageFont.load_default()
         font_title = ImageFont.load_default()
+        font_tiny = ImageFont.load_default()
     
     # Title
-    draw.text((120, 8), "Radial Profile", fill=(255, 255, 255), anchor="mt", font=font_title)
+    draw.text((120, 5), "Radial Profile", fill=(255, 255, 255), anchor="mt", font=font_title)
     
     # Calculate radial profile
     radius = wg_params['radius']
@@ -440,14 +496,32 @@ def render_radial_profile(wg_params):
     draw.line([(margin_left, margin_top), (margin_left, DISPLAY_HEIGHT - margin_bottom)], 
               fill=axis_color, width=1)
     
+    # X-axis tick marks and labels (radial position)
+    radius_mm = wg_params['radius'] * 1000  # Convert to mm
+    num_ticks = 4
+    for i in range(num_ticks + 1):
+        r_val = (radius_mm * i / num_ticks)
+        x_pos = margin_left + (i / num_ticks) * plot_width
+        draw.line([(x_pos, DISPLAY_HEIGHT - margin_bottom), 
+                   (x_pos, DISPLAY_HEIGHT - margin_bottom + 3)], fill=axis_color, width=1)
+        label = f"{r_val:.0f}" if r_val >= 1 else f"{r_val:.1f}"
+        draw.text((x_pos, DISPLAY_HEIGHT - margin_bottom + 5), label, 
+                  fill=axis_color, anchor="mt", font=font_tiny)
+    
+    # Y-axis tick marks
+    for i in range(5):
+        y_pos = margin_top + (plot_height * i / 4)
+        draw.line([(margin_left - 3, y_pos), (margin_left, y_pos)], fill=axis_color, width=1)
+    
     # Labels
-    draw.text((120, DISPLAY_HEIGHT - 5), "ρ", fill=axis_color, anchor="mb", font=font_small)
-    draw.text((8, 120), "|E|", fill=axis_color, anchor="mm", font=font_small)
+    draw.text((120, DISPLAY_HEIGHT - 5), "ρ (mm)", fill=axis_color, anchor="mb", font=font_small)
+    draw.text((10, 120), "|E|", fill=axis_color, anchor="mm", font=font_small)
     
     # Mark boundary
     bound_x = margin_left + plot_width
     draw.line([(bound_x, margin_top), (bound_x, DISPLAY_HEIGHT - margin_bottom)], 
-              fill=(239, 68, 68), width=1)
+              fill=(239, 68, 68), width=2)
+    draw.text((bound_x - 3, margin_top - 5), "a", fill=(239, 68, 68), anchor="rb", font=font_small)
     
     return img
     """Render 1D simulation as a line plot with axis labels"""
