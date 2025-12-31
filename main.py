@@ -772,6 +772,33 @@ def api_params():
             params = simulation_state.copy()
         return jsonify(params)
 
+@app.route('/api/display')
+def api_display():
+    """Serve current display image"""
+    from flask import send_file
+    import io
+    
+    # Get current parameters and render image
+    with state_lock:
+        params = simulation_state.copy()
+    
+    # Calculate waveguide parameters
+    wg_params = calculate_waveguide_params(
+        params['radius'], params['frequency'],
+        params['epsilon_r'], params['mu_r']
+    )
+    
+    # Render field distribution
+    theta, E_r, H_r = calculate_field_distribution(wg_params)
+    img = render_field_distribution(theta, E_r, H_r, wg_params, params.get('field_view', 'e_only'))
+    
+    # Convert PIL image to bytes
+    img_io = io.BytesIO()
+    img.save(img_io, 'PNG')
+    img_io.seek(0)
+    
+    return send_file(img_io, mimetype='image/png')
+
 def run_flask():
     """Run Flask in a separate thread"""
     app.run(host='0.0.0.0', port=WEB_PORT, debug=False, use_reloader=False)

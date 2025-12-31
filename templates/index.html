@@ -251,6 +251,14 @@
         </div>
 
         <div class="control-panel">
+            <h2 class="section-title">Display Preview</h2>
+            <div style="text-align: center; padding: 20px;">
+                <img id="display-preview" src="/api/display" alt="Display Preview" 
+                     style="width: 240px; height: 240px; border-radius: 12px; border: 2px solid rgba(34, 211, 238, 0.5); image-rendering: pixelated;">
+            </div>
+        </div>
+
+        <div class="control-panel">
             <h2 class="section-title">Field Display</h2>
             
             <div class="mode-selector">
@@ -401,6 +409,15 @@
         }
 
         updateFieldViewButtons();
+
+        // Auto-refresh display preview
+        function refreshDisplayPreview() {
+            const img = document.getElementById('display-preview');
+            img.src = '/api/display?t=' + new Date().getTime();
+        }
+        
+        // Refresh preview every 500ms
+        setInterval(refreshDisplayPreview, 500);
     </script>
 </body>
 </html>
