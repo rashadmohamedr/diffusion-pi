@@ -254,7 +254,6 @@
             <h2 class="section-title">Field Display</h2>
             
             <div class="mode-selector">
-                <button class="mode-btn" id="btn-both" onclick="selectFieldView('both')">Both</button>
                 <button class="mode-btn" id="btn-e-only" onclick="selectFieldView('e_only')">E Field</button>
                 <button class="mode-btn" id="btn-h-only" onclick="selectFieldView('h_only')">H Field</button>
             </div>
@@ -324,7 +323,7 @@
         let currentFieldView = '{{ params.field_view }}';
 
         function updateFieldViewButtons() {
-            ['both', 'e-only', 'h-only'].forEach(v => {
+            ['e-only', 'h-only'].forEach(v => {
                 document.getElementById('btn-' + v).classList.remove('active');
             });
             document.getElementById('btn-' + currentFieldView.replace('_', '-')).classList.add('active');
