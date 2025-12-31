@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diffusion Simulation Control</title>
+    <title>Circular Waveguide Simulator</title>
     <style>
         * {
             margin: 0;
@@ -17,7 +17,6 @@
             color: #e2e8f0;
             min-height: 100vh;
             padding: 20px;
-            overflow-x: hidden;
         }
 
         .container {
@@ -27,14 +26,8 @@
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .header {
@@ -73,13 +66,6 @@
             color: #22d3ee;
             font-weight: 600;
             margin-top: 15px;
-            font-size: 0.95em;
-            transition: all 0.3s ease;
-        }
-
-        .ip-badge:hover {
-            background: rgba(34, 211, 238, 0.3);
-            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.4);
         }
 
         .control-panel {
@@ -97,17 +83,6 @@
             margin-bottom: 20px;
             color: #22d3ee;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title::before {
-            content: '';
-            width: 4px;
-            height: 24px;
-            background: linear-gradient(180deg, #22d3ee, #3b82f6);
-            border-radius: 2px;
         }
 
         .form-group {
@@ -119,52 +94,31 @@
             margin-bottom: 8px;
             color: #cbd5e1;
             font-weight: 500;
-            font-size: 0.95em;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .mode-selector {
-            display: flex;
-            gap: 15px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
             margin-bottom: 25px;
         }
 
         .mode-btn {
-            flex: 1;
-            padding: 15px;
+            padding: 12px;
             border: 2px solid rgba(148, 163, 184, 0.3);
             background: rgba(15, 23, 42, 0.6);
             color: #94a3b8;
             border-radius: 12px;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 0.9em;
             font-weight: 600;
             transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .mode-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .mode-btn:hover::before {
-            left: 100%;
         }
 
         .mode-btn:hover {
             border-color: #22d3ee;
             color: #22d3ee;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
         }
 
         .mode-btn.active {
@@ -174,39 +128,26 @@
             box-shadow: 0 4px 16px rgba(34, 211, 238, 0.5);
         }
 
-        .slider-container {
-            position: relative;
-        }
-
         input[type="range"] {
             width: 100%;
             height: 8px;
             border-radius: 5px;
             background: linear-gradient(to right, 
-                #22d3ee 0%, 
-                #22d3ee var(--value), 
+                #22d3ee 0%, #22d3ee var(--value), 
                 rgba(148, 163, 184, 0.3) var(--value), 
                 rgba(148, 163, 184, 0.3) 100%);
             outline: none;
             -webkit-appearance: none;
-            transition: all 0.3s ease;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none;
             width: 20px;
             height: 20px;
             border-radius: 50%;
             background: linear-gradient(135deg, #22d3ee, #3b82f6);
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(34, 211, 238, 0.5);
-            transition: all 0.3s ease;
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.7);
         }
 
         input[type="range"]::-moz-range-thumb {
@@ -217,12 +158,6 @@
             cursor: pointer;
             border: none;
             box-shadow: 0 2px 8px rgba(34, 211, 238, 0.5);
-            transition: all 0.3s ease;
-        }
-
-        input[type="range"]::-moz-range-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.7);
         }
 
         .value-display {
@@ -233,8 +168,7 @@
             color: #22d3ee;
             font-weight: 600;
             margin-top: 8px;
-            font-size: 0.9em;
-            min-width: 80px;
+            min-width: 100px;
             text-align: center;
         }
 
@@ -256,18 +190,11 @@
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 16px rgba(34, 211, 238, 0.4);
         }
 
         .apply-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 24px rgba(34, 211, 238, 0.6);
-        }
-
-        .apply-btn:active {
-            transform: translateY(0);
         }
 
         .status {
@@ -280,18 +207,6 @@
             color: #22d3ee;
             font-weight: 600;
             display: none;
-            animation: slideIn 0.4s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
         }
 
         .status.show {
@@ -300,9 +215,8 @@
 
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
-            margin-top: 20px;
         }
 
         .info-card {
@@ -311,21 +225,12 @@
             border-radius: 12px;
             border: 1px solid rgba(148, 163, 184, 0.2);
             text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .info-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 20px rgba(34, 211, 238, 0.3);
-            border-color: #22d3ee;
         }
 
         .info-card-title {
             color: #94a3b8;
             font-size: 0.85em;
             margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .info-card-value {
@@ -333,100 +238,59 @@
             font-weight: 700;
             color: #22d3ee;
         }
-
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2em;
-            }
-
-            .control-panel {
-                padding: 20px;
-            }
-
-            .mode-selector {
-                flex-direction: column;
-            }
-        }
-
-        /* Pulse animation for active elements */
-        @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 4px 16px rgba(34, 211, 238, 0.4);
-            }
-            50% {
-                box-shadow: 0 4px 24px rgba(34, 211, 238, 0.7);
-            }
-        }
-
-        .mode-btn.active {
-            animation: pulse 2s infinite;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚛️ Diffusion Simulation</h1>
-            <p class="subtitle">Raspberry Pi Zero 2 W + ST7789 Display</p>
+            <h1>⚡ Circular Waveguide Simulator</h1>
+            <p class="subtitle">TM Mode Analysis • Raspberry Pi + ST7789</p>
             {% if ip %}
             <div class="ip-badge">📡 {{ ip }}:5000</div>
             {% endif %}
         </div>
 
         <div class="control-panel">
-            <h2 class="section-title">Simulation Mode</h2>
+            <h2 class="section-title">Visualization Mode</h2>
             
             <div class="mode-selector">
-                <button class="mode-btn" id="btn-1d" onclick="selectMode('1D')">
-                    📊 1D Diffusion
-                </button>
-                <button class="mode-btn" id="btn-2d" onclick="selectMode('2D')">
-                    🗺️ 2D Diffusion
-                </button>
+                <button class="mode-btn" id="btn-field" onclick="selectMode('field')">📊 Field</button>
+                <button class="mode-btn" id="btn-bessel" onclick="selectMode('bessel')">📈 Bessel</button>
+                <button class="mode-btn" id="btn-cutoff" onclick="selectMode('cutoff')">⚠️ Cutoff</button>
+                <button class="mode-btn" id="btn-radial" onclick="selectMode('radial')">📉 Radial</button>
             </div>
 
-            <h2 class="section-title">Parameters</h2>
+            <h2 class="section-title">Waveguide Parameters</h2>
             
             <div class="form-group">
-                <label for="param-L">Domain Length (L)</label>
-                <div class="slider-container">
-                    <input type="range" id="param-L" min="0.1" max="10" step="0.1" value="{{ params.L }}">
-                    <div class="value-display" id="value-L">{{ params.L }}</div>
-                </div>
-                <p class="param-info">Physical size of the simulation domain</p>
+                <label>Radius (mm)</label>
+                <input type="range" id="param-radius" min="5" max="50" step="0.5" value="{{ params.radius }}">
+                <div class="value-display" id="value-radius">{{ params.radius }} mm</div>
+                <p class="param-info">Waveguide inner radius</p>
             </div>
 
             <div class="form-group">
-                <label for="param-M">Mass / Amplitude (M)</label>
-                <div class="slider-container">
-                    <input type="range" id="param-M" min="0.1" max="5" step="0.1" value="{{ params.M }}">
-                    <div class="value-display" id="value-M">{{ params.M }}</div>
-                </div>
-                <p class="param-info">Initial concentration amplitude</p>
+                <label>Frequency (GHz)</label>
+                <input type="range" id="param-frequency" min="1" max="50" step="0.5" value="{{ params.frequency }}">
+                <div class="value-display" id="value-frequency">{{ params.frequency }} GHz</div>
+                <p class="param-info">Operating frequency</p>
             </div>
 
             <div class="form-group">
-                <label for="param-D">Diffusion Coefficient (D)</label>
-                <div class="slider-container">
-                    <input type="range" id="param-D" min="0.01" max="1" step="0.01" value="{{ params.D }}">
-                    <div class="value-display" id="value-D">{{ params.D }}</div>
-                </div>
-                <p class="param-info">Rate of diffusion spreading</p>
+                <label>Relative Permittivity (εᵣ)</label>
+                <input type="range" id="param-epsilon" min="1.0" max="5.0" step="0.1" value="{{ params.epsilon_r }}">
+                <div class="value-display" id="value-epsilon">{{ params.epsilon_r }}</div>
+                <p class="param-info">Dielectric constant (1.0 = vacuum)</p>
             </div>
 
             <div class="form-group">
-                <label for="param-t">Time (t)</label>
-                <div class="slider-container">
-                    <input type="range" id="param-t" min="0" max="20" step="0.1" value="{{ params.t }}">
-                    <div class="value-display" id="value-t">{{ params.t }}</div>
-                </div>
-                <p class="param-info">Simulation time - controls diffusion spread</p>
+                <label>Relative Permeability (μᵣ)</label>
+                <input type="range" id="param-mu" min="0.5" max="3.0" step="0.1" value="{{ params.mu_r }}">
+                <div class="value-display" id="value-mu">{{ params.mu_r }}</div>
+                <p class="param-info">Magnetic permeability (1.0 = vacuum)</p>
             </div>
 
-            <button class="apply-btn" onclick="applyParameters()">
-                ✨ Apply Changes
-            </button>
-
+            <button class="apply-btn" onclick="applyParameters()">✨ Apply to Display</button>
             <div class="status" id="status-message"></div>
         </div>
 
@@ -438,20 +302,20 @@
                     <div class="info-card-value" id="current-mode">{{ params.mode }}</div>
                 </div>
                 <div class="info-card">
-                    <div class="info-card-title">L</div>
-                    <div class="info-card-value" id="current-L">{{ params.L }}</div>
+                    <div class="info-card-title">Radius</div>
+                    <div class="info-card-value" id="current-radius">{{ params.radius }} mm</div>
                 </div>
                 <div class="info-card">
-                    <div class="info-card-title">M</div>
-                    <div class="info-card-value" id="current-M">{{ params.M }}</div>
+                    <div class="info-card-title">Freq</div>
+                    <div class="info-card-value" id="current-frequency">{{ params.frequency }} GHz</div>
                 </div>
                 <div class="info-card">
-                    <div class="info-card-title">D</div>
-                    <div class="info-card-value" id="current-D">{{ params.D }}</div>
+                    <div class="info-card-title">εᵣ</div>
+                    <div class="info-card-value" id="current-epsilon">{{ params.epsilon_r }}</div>
                 </div>
                 <div class="info-card">
-                    <div class="info-card-title">Time (t)</div>
-                    <div class="info-card-value" id="current-t">{{ params.t }}</div>
+                    <div class="info-card-title">μᵣ</div>
+                    <div class="info-card-value" id="current-mu">{{ params.mu_r }}</div>
                 </div>
             </div>
         </div>
@@ -460,16 +324,11 @@
     <script>
         let currentMode = '{{ params.mode }}';
 
-        // Initialize mode buttons
         function updateModeButtons() {
-            document.getElementById('btn-1d').classList.remove('active');
-            document.getElementById('btn-2d').classList.remove('active');
-            
-            if (currentMode === '1D') {
-                document.getElementById('btn-1d').classList.add('active');
-            } else {
-                document.getElementById('btn-2d').classList.add('active');
-            }
+            ['field', 'bessel', 'cutoff', 'radial'].forEach(m => {
+                document.getElementById('btn-' + m).classList.remove('active');
+            });
+            document.getElementById('btn-' + currentMode).classList.add('active');
         }
 
         function selectMode(mode) {
@@ -477,90 +336,72 @@
             updateModeButtons();
         }
 
-        // Update slider values in real-time
-        document.getElementById('param-L').addEventListener('input', function(e) {
-            document.getElementById('value-L').textContent = e.target.value;
+        document.getElementById('param-radius').addEventListener('input', function(e) {
+            document.getElementById('value-radius').textContent = e.target.value + ' mm';
             updateSliderBackground(e.target);
         });
 
-        document.getElementById('param-M').addEventListener('input', function(e) {
-            document.getElementById('value-M').textContent = e.target.value;
+        document.getElementById('param-frequency').addEventListener('input', function(e) {
+            document.getElementById('value-frequency').textContent = e.target.value + ' GHz';
             updateSliderBackground(e.target);
         });
 
-        document.getElementById('param-D').addEventListener('input', function(e) {
-            document.getElementById('value-D').textContent = e.target.value;
+        document.getElementById('param-epsilon').addEventListener('input', function(e) {
+            document.getElementById('value-epsilon').textContent = parseFloat(e.target.value).toFixed(1);
             updateSliderBackground(e.target);
         });
 
-        document.getElementById('param-t').addEventListener('input', function(e) {
-            document.getElementById('value-t').textContent = e.target.value;
+        document.getElementById('param-mu').addEventListener('input', function(e) {
+            document.getElementById('value-mu').textContent = parseFloat(e.target.value).toFixed(1);
             updateSliderBackground(e.target);
         });
 
         function updateSliderBackground(slider) {
-            const min = slider.min;
-            const max = slider.max;
-            const val = slider.value;
-            const percentage = ((val - min) / (max - min)) * 100;
+            const percentage = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
             slider.style.setProperty('--value', percentage + '%');
         }
 
-        // Initialize slider backgrounds
-        document.querySelectorAll('input[type="range"]').forEach(slider => {
-            updateSliderBackground(slider);
-        });
+        document.querySelectorAll('input[type="range"]').forEach(updateSliderBackground);
 
-        // Apply parameters
         function applyParameters() {
             const params = {
                 mode: currentMode,
-                L: parseFloat(document.getElementById('param-L').value),
-                M: parseFloat(document.getElementById('param-M').value),
-                D: parseFloat(document.getElementById('param-D').value),
-                t: parseFloat(document.getElementById('param-t').value)
+                radius: parseFloat(document.getElementById('param-radius').value),
+                frequency: parseFloat(document.getElementById('param-frequency').value),
+                epsilon_r: parseFloat(document.getElementById('param-epsilon').value),
+                mu_r: parseFloat(document.getElementById('param-mu').value)
             };
 
             fetch('/api/params', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(params)
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                showStatus('✅ Parameters updated successfully!');
+                showStatus('✅ Parameters updated!');
                 updateCurrentConfig(data.params);
             })
-            .catch(error => {
-                showStatus('❌ Error updating parameters', true);
-                console.error('Error:', error);
-            });
+            .catch(e => showStatus('❌ Error', true));
         }
 
         function showStatus(message, isError = false) {
-            const statusEl = document.getElementById('status-message');
-            statusEl.textContent = message;
-            statusEl.style.background = isError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 211, 238, 0.1)';
-            statusEl.style.borderLeftColor = isError ? '#ef4444' : '#22d3ee';
-            statusEl.style.color = isError ? '#ef4444' : '#22d3ee';
-            statusEl.classList.add('show');
-            
-            setTimeout(() => {
-                statusEl.classList.remove('show');
-            }, 3000);
+            const el = document.getElementById('status-message');
+            el.textContent = message;
+            el.style.borderLeftColor = isError ? '#ef4444' : '#22d3ee';
+            el.style.color = isError ? '#ef4444' : '#22d3ee';
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 3000);
         }
 
-        function updateCurrentConfig(params) {
-            document.getElementById('current-mode').textContent = params.mode;
-            document.getElementById('current-L').textContent = params.L.toFixed(2);
-            document.getElementById('current-M').textContent = params.M.toFixed(2);
-            document.getElementById('current-D').textContent = params.D.toFixed(3);
-            document.getElementById('current-t').textContent = params.t.toFixed(1);
+        function updateCurrentConfig(p) {
+            document.getElementById('current-mode').textContent = p.mode;
+            document.getElementById('current-radius').textContent = p.radius.toFixed(1) + ' mm';
+            document.getElementById('current-frequency').textContent = p.frequency.toFixed(1) + ' GHz';
+            document.getElementById('current-epsilon').textContent = p.epsilon_r.toFixed(1);
+            document.getElementById('current-mu').textContent = p.mu_r.toFixed(1);
         }
 
-        // Initialize on load
         updateModeButtons();
     </script>
 </body>

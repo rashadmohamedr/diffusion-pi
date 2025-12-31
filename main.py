@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Embedded Diffusion Simulation System
+Circular Waveguide Simulator
 Raspberry Pi Zero 2 W + ST7789 Display
+TM Mode Analysis with Bessel Functions
 """
 
 import os
@@ -12,6 +13,7 @@ import socket
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from flask import Flask, render_template, request, jsonify
+from scipy.special import jn, yn, jn_zeros  # Bessel functions
 
 # Import ST7789 display driver (try lowercase first, then uppercase for compatibility)
 try:
@@ -34,13 +36,16 @@ DISPLAY_HEIGHT = 240
 WEB_PORT = 5000
 IP_DISPLAY_DURATION = 10  # seconds
 
+# Physical constants
+C_LIGHT = 3e8  # Speed of light in m/s
+
 # Simulation defaults
 DEFAULT_PARAMS = {
-    'mode': '2D',  # '1D' or '2D'
-    'L': 1.0,      # Domain length
-    'M': 1.0,      # Mass/Amplitude
-    'D': 0.1,      # Diffusion coefficient
-    't': 0.0,      # Time (controlled from web interface)
+    'mode': 'field',    # 'field', 'bessel', 'cutoff', 'radial'
+    'radius': 20.0,     # Waveguide radius in mm
+    'frequency': 10.0,  # Frequency in GHz
+    'epsilon_r': 1.0,   # Relative permittivity
+    'mu_r': 1.0,        # Relative permeability
     'running': True
 }
 
@@ -72,29 +77,71 @@ def get_ip_address():
         return None
 
 # ============================================================================
-# Diffusion Simulation Engine
+# Waveguide Calculations
 # ============================================================================
 
-def simulate_1d(L, M, D, t, num_points=240):
+def calculate_waveguide_params(radius_mm, frequency_GHz, epsilon_r, mu_r):
     """
-    1D Diffusion: u(x,t) = (2M/L) * sin(πx/L) * exp(-π²Dt/L²)
+    Calculate waveguide parameters
+    Returns: dict with wavelength, k, kc, beta, fc, etc.
     """
-    x = np.linspace(0, L, num_points)
-    u = (2 * M / L) * np.sin(np.pi * x / L) * np.exp(-np.pi**2 * D * t / L**2)
-    return x, u
+    radius = radius_mm / 1000  # Convert to meters
+    frequency = frequency_GHz * 1e9  # Convert to Hz
+    
+    # Basic parameters
+    wavelength = C_LIGHT / frequency
+    k = 2 * np.pi / wavelength
+    kc = 2.405 / radius  # First TM01 mode cutoff wave number
+    fc = kc * C_LIGHT / (2 * np.pi * np.sqrt(epsilon_r * mu_r))  # Cutoff frequency
+    
+    # Propagation constant
+    beta_squared = k**2 - kc**2
+    beta = np.sqrt(max(0, beta_squared))
+    
+    # Check if above cutoff
+    above_cutoff = frequency >= fc
+    
+    return {
+        'wavelength': wavelength,
+        'k': k,
+        'kc': kc,
+        'fc': fc,
+        'beta': beta,
+        'above_cutoff': above_cutoff,
+        'radius': radius
+    }
 
-def simulate_2d(L, M, D, t, resolution=240):
+def calculate_field_distribution(params_dict, resolution=240):
     """
-    2D Diffusion: u(x,y,t) = (2M/L) * sin(πx/L) * sin(πy/L) * exp(-π²Dt/L²)
+    Calculate TM01 mode field distribution
+    Returns: theta, E_r, H_r arrays
     """
-    x = np.linspace(0, L, resolution)
-    y = np.linspace(0, L, resolution)
-    X, Y = np.meshgrid(x, y)
+    theta = np.linspace(0, 2 * np.pi, resolution)
+    k = params_dict['k']
+    beta = params_dict['beta']
+    radius = params_dict['radius']
     
-    u = (2 * M / L) * np.sin(np.pi * X / L) * np.sin(np.pi * Y / L) * \
-        np.exp(-np.pi**2 * D * t / L**2)
+    # Electric and magnetic field patterns (simplified TM01)
+    E_r = (1 / (k + 1e-10)) * np.cos(beta * radius + 1e-10) * np.cos(theta)
+    H_r = (1 / (k + 1e-10)) * np.sin(beta * radius + 1e-10) * np.cos(theta)
     
-    return u
+    return theta, E_r, H_r
+
+def calculate_bessel_functions(x_max=15, resolution=500):
+    """
+    Calculate Bessel functions of first and second kind
+    """
+    x = np.linspace(0.01, x_max, resolution)
+    
+    J0 = jn(0, x)
+    J1 = jn(1, x)
+    Y0 = yn(0, x)
+    Y1 = yn(1, x)
+    
+    # Get zeros of J0 (cutoff points)
+    j0_zeros = jn_zeros(0, 5)
+    
+    return x, J0, J1, Y0, Y1, j0_zeros
 
 # ============================================================================
 # Display Rendering
@@ -116,7 +163,7 @@ def create_ip_display(ip_address):
         font_small = ImageFont.load_default()
     
     # Title
-    draw.text((120, 60), "Diffusion Sim", fill=(148, 163, 184), anchor="mm", font=font_medium)
+    draw.text((120, 60), "Waveguide Sim", fill=(148, 163, 184), anchor="mm", font=font_medium)
     
     # IP Address
     if ip_address:
@@ -127,7 +174,282 @@ def create_ip_display(ip_address):
     
     return img
 
-def render_1d_simulation(x, u):
+def render_field_distribution(theta, E_r, H_r, wg_params):
+    """Render electric and magnetic field distributions in polar form"""
+    img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+    except:
+        font_small = ImageFont.load_default()
+        font_title = ImageFont.load_default()
+    
+    # Title
+    above_cutoff = wg_params['above_cutoff']
+    status = "✓" if above_cutoff else "✗"
+    color = (34, 211, 238) if above_cutoff else (239, 68, 68)
+    draw.text((120, 8), f"{status} TM01 Field", fill=color, anchor="mt", font=font_title)
+    
+    # Create two circular plots (E and H fields)
+    center_y1 = 70
+    center_y2 = 165
+    center_x = 120
+    max_radius = 45
+    
+    # Normalize fields
+    E_norm = np.abs(E_r)
+    H_norm = np.abs(H_r)
+    E_max = E_norm.max() if E_norm.max() > 1e-10 else 1.0
+    H_max = H_norm.max() if H_norm.max() > 1e-10 else 1.0
+    
+    # Draw E field (top)
+    points_e = []
+    for i, t in enumerate(theta):
+        r = (E_norm[i] / E_max) * max_radius
+        x = center_x + r * np.cos(t)
+        y = center_y1 - r * np.sin(t)
+        points_e.append((x, y))
+    
+    if len(points_e) > 1:
+        draw.polygon(points_e, fill=(34, 211, 238, 50), outline=(34, 211, 238), width=2)
+    
+    # E label
+    draw.text((120, center_y1 - max_radius - 12), "|E|", fill=(34, 211, 238), anchor="mm", font=font_small)
+    
+    # Draw H field (bottom)
+    points_h = []
+    for i, t in enumerate(theta):
+        r = (H_norm[i] / H_max) * max_radius
+        x = center_x + r * np.cos(t)
+        y = center_y2 - r * np.sin(t)
+        points_h.append((x, y))
+    
+    if len(points_h) > 1:
+        draw.polygon(points_h, fill=(239, 68, 68, 50), outline=(239, 68, 68), width=2)
+    
+    # H label
+    draw.text((120, center_y2 + max_radius + 10), "|H|", fill=(239, 68, 68), anchor="mm", font=font_small)
+    
+    return img
+
+def render_bessel_functions():
+    """Render Bessel functions J0 and J1"""
+    img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+    except:
+        font_small = ImageFont.load_default()
+        font_title = ImageFont.load_default()
+    
+    # Title
+    draw.text((120, 8), "Bessel Functions", fill=(255, 255, 255), anchor="mt", font=font_title)
+    
+    # Calculate Bessel functions
+    x, J0, J1, Y0, Y1, j0_zeros = calculate_bessel_functions(x_max=12, resolution=300)
+    
+    # Plot area
+    margin = 30
+    plot_width = DISPLAY_WIDTH - 2 * margin
+    plot_height = (DISPLAY_HEIGHT - 60) // 2
+    
+    # Top plot: J0 and J1
+    y_top = 35
+    
+    # Normalize and plot
+    j_max = 1.2
+    j_min = -0.6
+    
+    # Draw axes
+    axis_y = y_top + int(plot_height * 0.6 / (j_max - j_min))
+    draw.line([(margin, axis_y), (DISPLAY_WIDTH - margin, axis_y)], 
+              fill=(148, 163, 184), width=1)
+    
+    # Plot J0 (blue)
+    points_j0 = []
+    for i, x_val in enumerate(x):
+        x_pos = margin + (x_val / 12) * plot_width
+        y_pos = axis_y - ((J0[i] - 0) / (j_max - j_min)) * plot_height
+        points_j0.append((x_pos, y_pos))
+    if len(points_j0) > 1:
+        draw.line(points_j0, fill=(34, 211, 238), width=2)
+    
+    # Plot J1 (green)
+    points_j1 = []
+    for i, x_val in enumerate(x):
+        x_pos = margin + (x_val / 12) * plot_width
+        y_pos = axis_y - ((J1[i] - 0) / (j_max - j_min)) * plot_height
+        points_j1.append((x_pos, y_pos))
+    if len(points_j1) > 1:
+        draw.line(points_j1, fill=(34, 197, 94), width=2)
+    
+    # Mark first zero
+    if len(j0_zeros) > 0:
+        zero_x = margin + (j0_zeros[0] / 12) * plot_width
+        draw.line([(zero_x, y_top), (zero_x, y_top + plot_height)], 
+                  fill=(239, 68, 68), width=1, linestyle='dashed')
+    
+    # Labels
+    draw.text((40, axis_y - 10), "J₀", fill=(34, 211, 238), anchor="mm", font=font_small)
+    draw.text((40, axis_y + 10), "J₁", fill=(34, 197, 94), anchor="mm", font=font_small)
+    
+    # Bottom plot info
+    y_bottom = y_top + plot_height + 30
+    info_text = f"TM₀₁ cutoff: p₀₁ = {j0_zeros[0]:.3f}"
+    draw.text((120, y_bottom), info_text, fill=(148, 163, 184), anchor="mt", font=font_small)
+    
+    return img
+
+def render_cutoff_analysis(wg_params):
+    """Render cutoff frequency analysis"""
+    img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+        font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 8)
+    except:
+        font_small = ImageFont.load_default()
+        font_title = ImageFont.load_default()
+        font_tiny = ImageFont.load_default()
+    
+    # Title
+    draw.text((120, 8), "Cutoff Analysis", fill=(255, 255, 255), anchor="mt", font=font_title)
+    
+    # Get parameters
+    fc_GHz = wg_params['fc'] / 1e9
+    k = wg_params['k']
+    kc = wg_params['kc']
+    beta = wg_params['beta']
+    above_cutoff = wg_params['above_cutoff']
+    
+    # Status display
+    y_pos = 35
+    status_color = (34, 211, 238) if above_cutoff else (239, 68, 68)
+    status_text = "ABOVE CUTOFF" if above_cutoff else "BELOW CUTOFF"
+    draw.text((120, y_pos), status_text, fill=status_color, anchor="mt", font=font_title)
+    
+    # Parameters display
+    y_pos += 30
+    params_text = [
+        f"fc = {fc_GHz:.2f} GHz",
+        f"k = {k:.2e} m⁻¹",
+        f"kc = {kc:.2e} m⁻¹",
+        f"β = {beta:.2e} m⁻¹"
+    ]
+    
+    for text in params_text:
+        draw.text((120, y_pos), text, fill=(148, 163, 184), anchor="mt", font=font_small)
+        y_pos += 18
+    
+    # Simple dispersion diagram
+    y_pos += 20
+    draw.text((120, y_pos), "Dispersion Relation:", fill=(255, 255, 255), anchor="mt", font=font_small)
+    
+    # Draw k vs beta relationship
+    margin = 40
+    plot_width = DISPLAY_WIDTH - 2 * margin
+    plot_height = 60
+    y_plot = y_pos + 20
+    
+    # Draw axes
+    draw.line([(margin, y_plot + plot_height), (DISPLAY_WIDTH - margin, y_plot + plot_height)], 
+              fill=(148, 163, 184), width=1)
+    draw.line([(margin, y_plot), (margin, y_plot + plot_height)], 
+              fill=(148, 163, 184), width=1)
+    
+    # Draw kc line (cutoff)
+    kc_x = margin + plot_width * 0.3
+    draw.line([(kc_x, y_plot), (kc_x, y_plot + plot_height)], 
+              fill=(239, 68, 68), width=2)
+    draw.text((kc_x, y_plot + plot_height + 5), "kc", fill=(239, 68, 68), anchor="mt", font=font_tiny)
+    
+    # Draw current k
+    k_ratio = min(k / (kc * 2), 1.0)
+    k_x = margin + plot_width * k_ratio
+    draw.line([(k_x, y_plot), (k_x, y_plot + plot_height)], 
+              fill=status_color, width=2)
+    draw.text((k_x, y_plot + plot_height + 5), "k", fill=status_color, anchor="mt", font=font_tiny)
+    
+    return img
+
+def render_radial_profile(wg_params):
+    """Render radial field profile"""
+    img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
+    draw = ImageDraw.Draw(img)
+    
+    try:
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+    except:
+        font_small = ImageFont.load_default()
+        font_title = ImageFont.load_default()
+    
+    # Title
+    draw.text((120, 8), "Radial Profile", fill=(255, 255, 255), anchor="mt", font=font_title)
+    
+    # Calculate radial profile
+    radius = wg_params['radius']
+    k = wg_params['k']
+    beta = wg_params['beta']
+    
+    rho = np.linspace(0.001, radius, 200)
+    E_r_profile = (1 / (k + 1e-10)) * np.cos(beta * rho + 1e-10)
+    
+    # Plot area
+    margin_left = 35
+    margin_right = 15
+    margin_bottom = 30
+    margin_top = 35
+    
+    plot_width = DISPLAY_WIDTH - margin_left - margin_right
+    plot_height = DISPLAY_HEIGHT - margin_top - margin_bottom
+    
+    # Normalize
+    E_max = np.abs(E_r_profile).max()
+    if E_max > 1e-10:
+        E_norm = np.abs(E_r_profile) / E_max
+    else:
+        E_norm = np.zeros_like(E_r_profile)
+    
+    # Plot
+    points = []
+    for i, r in enumerate(rho):
+        x_pos = margin_left + (r / radius) * plot_width
+        y_pos = DISPLAY_HEIGHT - margin_bottom - E_norm[i] * plot_height
+        points.append((x_pos, y_pos))
+    
+    # Fill under curve
+    if len(points) > 1:
+        fill_points = [(margin_left, DISPLAY_HEIGHT - margin_bottom)]
+        fill_points.extend(points)
+        fill_points.append((margin_left + plot_width, DISPLAY_HEIGHT - margin_bottom))
+        draw.polygon(fill_points, fill=(34, 211, 238, 50))
+        draw.line(points, fill=(34, 211, 238), width=2)
+    
+    # Axes
+    axis_color = (148, 163, 184)
+    draw.line([(margin_left, DISPLAY_HEIGHT - margin_bottom), 
+               (DISPLAY_WIDTH - margin_right, DISPLAY_HEIGHT - margin_bottom)], 
+              fill=axis_color, width=1)
+    draw.line([(margin_left, margin_top), (margin_left, DISPLAY_HEIGHT - margin_bottom)], 
+              fill=axis_color, width=1)
+    
+    # Labels
+    draw.text((120, DISPLAY_HEIGHT - 5), "ρ", fill=axis_color, anchor="mb", font=font_small)
+    draw.text((8, 120), "|E|", fill=axis_color, anchor="mm", font=font_small)
+    
+    # Mark boundary
+    bound_x = margin_left + plot_width
+    draw.line([(bound_x, margin_top), (bound_x, DISPLAY_HEIGHT - margin_bottom)], 
+              fill=(239, 68, 68), width=1)
+    
+    return img
     """Render 1D simulation as a line plot with axis labels"""
     img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
     draw = ImageDraw.Draw(img)
@@ -229,113 +551,6 @@ def render_1d_simulation(x, u):
     
     return img
 
-def render_2d_simulation(u, L=1.0):
-    """Render 2D simulation as a heatmap with axis labels"""
-    # Try to load font for axis labels
-    try:
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
-    except:
-        font_small = ImageFont.load_default()
-        font_title = ImageFont.load_default()
-    
-    # Define margins to make room for labels
-    margin_left = 35
-    margin_bottom = 30
-    margin_top = 26
-    margin_right = 10
-    
-    plot_width = DISPLAY_WIDTH - margin_left - margin_right
-    plot_height = DISPLAY_HEIGHT - margin_top - margin_bottom
-    
-    # Normalize to 0-255 range
-    u_min, u_max = u.min(), u.max()
-    if u_max - u_min > 1e-10:
-        u_norm = ((u - u_min) / (u_max - u_min) * 255).astype(np.uint8)
-    else:
-        u_norm = np.zeros_like(u, dtype=np.uint8)
-    
-    # Create grayscale image
-    img_heat = Image.fromarray(u_norm, mode='L')
-    
-    # Convert to RGB with color map (cyan gradient)
-    img_heat_rgb = Image.new('RGB', img_heat.size)
-    pixels = img_heat.load()
-    pixels_rgb = img_heat_rgb.load()
-    
-    for i in range(img_heat.size[0]):
-        for j in range(img_heat.size[1]):
-            val = pixels[i, j]
-            # Gradient from dark blue to cyan
-            r = int(val * 34 / 255)
-            g = int(val * 211 / 255)
-            b = int(val * 238 / 255 + (255 - val) * 15 / 255)
-            pixels_rgb[i, j] = (r, g, b)
-    
-    # Resize heatmap to fit in plot area
-    img_heat_rgb = img_heat_rgb.resize((plot_width, plot_height))
-    
-    # Create final image with margins for labels
-    img = Image.new('RGB', (DISPLAY_WIDTH, DISPLAY_HEIGHT), color=(15, 23, 42))
-    img.paste(img_heat_rgb, (margin_left, margin_top))
-    
-    draw = ImageDraw.Draw(img)
-    axis_color = (148, 163, 184)
-    
-    # Draw border around heatmap
-    draw.rectangle([(margin_left, margin_top), 
-                    (margin_left + plot_width, margin_top + plot_height)], 
-                   outline=axis_color, width=1)
-    
-    # X-axis tick marks and labels
-    num_x_ticks = 4
-    for i in range(num_x_ticks + 1):
-        x_val = L * i / num_x_ticks
-        x_pos = margin_left + plot_width * i / num_x_ticks
-        # Tick mark
-        draw.line([(x_pos, margin_top + plot_height), 
-                   (x_pos, margin_top + plot_height + 3)], fill=axis_color, width=1)
-        # Label - format based on value magnitude
-        if x_val == 0:
-            label = "0"
-        elif x_val >= 10:
-            label = f"{int(x_val)}"
-        elif x_val >= 1:
-            label = f"{x_val:.1f}"
-        else:
-            label = f"{x_val:.2f}"
-        draw.text((x_pos, margin_top + plot_height + 5), label, 
-                  fill=axis_color, anchor="mt", font=font_small)
-    
-    # Y-axis tick marks and labels
-    num_y_ticks = 4
-    for i in range(num_y_ticks + 1):
-        y_val = L * i / num_y_ticks
-        y_pos = margin_top + plot_height - plot_height * i / num_y_ticks
-        # Tick mark
-        draw.line([(margin_left - 3, y_pos), (margin_left, y_pos)], fill=axis_color, width=1)
-        # Label - format based on value magnitude
-        if y_val == 0:
-            label = "0"
-        elif y_val >= 10:
-            label = f"{int(y_val)}"
-        elif y_val >= 1:
-            label = f"{y_val:.1f}"
-        else:
-            label = f"{y_val:.2f}"
-        draw.text((margin_left - 5, y_pos), label, fill=axis_color, anchor="rm", font=font_small)
-    
-    # Axis labels
-    draw.text((margin_left + plot_width // 2, DISPLAY_HEIGHT - 3), "x", 
-              fill=axis_color, anchor="mb", font=font_small)
-    draw.text((5, margin_top + plot_height // 2), "y", 
-              fill=axis_color, anchor="mm", font=font_small)
-    
-    # Title
-    draw.text((DISPLAY_WIDTH // 2, 5), "2D Diffusion", fill=(255, 255, 255), anchor="mt", font=font_title)
-    
-    return img
-
 # ============================================================================
 # Display Thread
 # ============================================================================
@@ -379,18 +594,30 @@ def display_thread():
         if current_time < ip_show_until:
             img = create_ip_display(current_ip)
         else:
-            # Run simulation with static time from parameters
+            # Get waveguide parameters
             with state_lock:
                 params = simulation_state.copy()
             
-            t_sim = params['t']  # Use time from web interface
+            # Calculate waveguide parameters
+            wg_params = calculate_waveguide_params(
+                params['radius'], params['frequency'],
+                params['epsilon_r'], params['mu_r']
+            )
             
-            if params['mode'] == '1D':
-                x, u = simulate_1d(params['L'], params['M'], params['D'], t_sim)
-                img = render_1d_simulation(x, u)
-            else:  # 2D
-                u = simulate_2d(params['L'], params['M'], params['D'], t_sim)
-                img = render_2d_simulation(u, params['L'])
+            # Choose visualization based on mode
+            if params['mode'] == 'field':
+                theta, E_r, H_r = calculate_field_distribution(wg_params)
+                img = render_field_distribution(theta, E_r, H_r, wg_params)
+            elif params['mode'] == 'bessel':
+                img = render_bessel_functions()
+            elif params['mode'] == 'cutoff':
+                img = render_cutoff_analysis(wg_params)
+            elif params['mode'] == 'radial':
+                img = render_radial_profile(wg_params)
+            else:
+                # Default to field distribution
+                theta, E_r, H_r = calculate_field_distribution(wg_params)
+                img = render_field_distribution(theta, E_r, H_r, wg_params)
         
         # Display image
         if DISPLAY_AVAILABLE and display_instance:
@@ -421,14 +648,14 @@ def api_params():
         with state_lock:
             if 'mode' in data:
                 simulation_state['mode'] = data['mode']
-            if 'L' in data:
-                simulation_state['L'] = float(data['L'])
-            if 'M' in data:
-                simulation_state['M'] = float(data['M'])
-            if 'D' in data:
-                simulation_state['D'] = float(data['D'])
-            if 't' in data:
-                simulation_state['t'] = float(data['t'])
+            if 'radius' in data:
+                simulation_state['radius'] = float(data['radius'])
+            if 'frequency' in data:
+                simulation_state['frequency'] = float(data['frequency'])
+            if 'epsilon_r' in data:
+                simulation_state['epsilon_r'] = float(data['epsilon_r'])
+            if 'mu_r' in data:
+                simulation_state['mu_r'] = float(data['mu_r'])
         return jsonify({'status': 'ok', 'params': simulation_state})
     else:
         with state_lock:
@@ -446,7 +673,7 @@ def run_flask():
 def main():
     """Main application entry point"""
     print("=" * 60)
-    print("Embedded Diffusion Simulation System")
+    print("Circular Waveguide Simulator - TM Mode Analysis")
     print("=" * 60)
     
     # Start display thread

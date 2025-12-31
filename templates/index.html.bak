@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffusion Simulation Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 20px;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #22d3ee, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        .ip-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(34, 211, 238, 0.2);
+            border: 1px solid #22d3ee;
+            border-radius: 20px;
+            color: #22d3ee;
+            font-weight: 600;
+            margin-top: 15px;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+        }
+
+        .ip-badge:hover {
+            background: rgba(34, 211, 238, 0.3);
+            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.4);
+        }
+
+        .control-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            color: #22d3ee;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, #22d3ee, #3b82f6);
+            border-radius: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.6);
+            color: #94a3b8;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .mode-btn:hover::before {
+            left: 100%;
+        }
+
+        .mode-btn:hover {
+            border-color: #22d3ee;
+            color: #22d3ee;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #22d3ee, #3b82f6);
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 4px 16px rgba(34, 211, 238, 0.5);
+        }
+
+        .slider-container {
+            position: relative;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(to right, 
+                #22d3ee 0%, 
+                #22d3ee var(--value), 
+                rgba(148, 163, 184, 0.3) var(--value), 
+                rgba(148, 163, 184, 0.3) 100%);
+            outline: none;
+            -webkit-appearance: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #22d3ee, #3b82f6);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(34, 211, 238, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.7);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #22d3ee, #3b82f6);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(34, 211, 238, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.7);
+        }
+
+        .value-display {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(34, 211, 238, 0.2);
+            border-radius: 8px;
+            color: #22d3ee;
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 0.9em;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .param-info {
+            color: #64748b;
+            font-size: 0.85em;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .apply-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #22d3ee, #3b82f6);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 16px rgba(34, 211, 238, 0.4);
+        }
+
+        .apply-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(34, 211, 238, 0.6);
+        }
+
+        .apply-btn:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(34, 211, 238, 0.1);
+            border-left: 4px solid #22d3ee;
+            border-radius: 8px;
+            margin-top: 20px;
+            color: #22d3ee;
+            font-weight: 600;
+            display: none;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .info-card {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(34, 211, 238, 0.3);
+            border-color: #22d3ee;
+        }
+
+        .info-card-title {
+            color: #94a3b8;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-card-value {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #22d3ee;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .control-panel {
+                padding: 20px;
+            }
+
+            .mode-selector {
+                flex-direction: column;
+            }
+        }
+
+        /* Pulse animation for active elements */
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 4px 16px rgba(34, 211, 238, 0.4);
+            }
+            50% {
+                box-shadow: 0 4px 24px rgba(34, 211, 238, 0.7);
+            }
+        }
+
+        .mode-btn.active {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚛️ Diffusion Simulation</h1>
+            <p class="subtitle">Raspberry Pi Zero 2 W + ST7789 Display</p>
+            {% if ip %}
+            <div class="ip-badge">📡 {{ ip }}:5000</div>
+            {% endif %}
+        </div>
+
+        <div class="control-panel">
+            <h2 class="section-title">Simulation Mode</h2>
+            
+            <div class="mode-selector">
+                <button class="mode-btn" id="btn-1d" onclick="selectMode('1D')">
+                    📊 1D Diffusion
+                </button>
+                <button class="mode-btn" id="btn-2d" onclick="selectMode('2D')">
+                    🗺️ 2D Diffusion
+                </button>
+            </div>
+
+            <h2 class="section-title">Parameters</h2>
+            
+            <div class="form-group">
+                <label for="param-L">Domain Length (L)</label>
+                <div class="slider-container">
+                    <input type="range" id="param-L" min="0.1" max="10" step="0.1" value="{{ params.L }}">
+                    <div class="value-display" id="value-L">{{ params.L }}</div>
+                </div>
+                <p class="param-info">Physical size of the simulation domain</p>
+            </div>
+
+            <div class="form-group">
+                <label for="param-M">Mass / Amplitude (M)</label>
+                <div class="slider-container">
+                    <input type="range" id="param-M" min="0.1" max="5" step="0.1" value="{{ params.M }}">
+                    <div class="value-display" id="value-M">{{ params.M }}</div>
+                </div>
+                <p class="param-info">Initial concentration amplitude</p>
+            </div>
+
+            <div class="form-group">
+                <label for="param-D">Diffusion Coefficient (D)</label>
+                <div class="slider-container">
+                    <input type="range" id="param-D" min="0.01" max="1" step="0.01" value="{{ params.D }}">
+                    <div class="value-display" id="value-D">{{ params.D }}</div>
+                </div>
+                <p class="param-info">Rate of diffusion spreading</p>
+            </div>
+
+            <div class="form-group">
+                <label for="param-t">Time (t)</label>
+                <div class="slider-container">
+                    <input type="range" id="param-t" min="0" max="20" step="0.1" value="{{ params.t }}">
+                    <div class="value-display" id="value-t">{{ params.t }}</div>
+                </div>
+                <p class="param-info">Simulation time - controls diffusion spread</p>
+            </div>
+
+            <button class="apply-btn" onclick="applyParameters()">
+                ✨ Apply Changes
+            </button>
+
+            <div class="status" id="status-message"></div>
+        </div>
+
+        <div class="control-panel">
+            <h2 class="section-title">Current Configuration</h2>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-card-title">Mode</div>
+                    <div class="info-card-value" id="current-mode">{{ params.mode }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">L</div>
+                    <div class="info-card-value" id="current-L">{{ params.L }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">M</div>
+                    <div class="info-card-value" id="current-M">{{ params.M }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">D</div>
+                    <div class="info-card-value" id="current-D">{{ params.D }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">Time (t)</div>
+                    <div class="info-card-value" id="current-t">{{ params.t }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = '{{ params.mode }}';
+
+        // Initialize mode buttons
+        function updateModeButtons() {
+            document.getElementById('btn-1d').classList.remove('active');
+            document.getElementById('btn-2d').classList.remove('active');
+            
+            if (currentMode === '1D') {
+                document.getElementById('btn-1d').classList.add('active');
+            } else {
+                document.getElementById('btn-2d').classList.add('active');
+            }
+        }
+
+        function selectMode(mode) {
+            currentMode = mode;
+            updateModeButtons();
+        }
+
+        // Update slider values in real-time
+        document.getElementById('param-L').addEventListener('input', function(e) {
+            document.getElementById('value-L').textContent = e.target.value;
+            updateSliderBackground(e.target);
+        });
+
+        document.getElementById('param-M').addEventListener('input', function(e) {
+            document.getElementById('value-M').textContent = e.target.value;
+            updateSliderBackground(e.target);
+        });
+
+        document.getElementById('param-D').addEventListener('input', function(e) {
+            document.getElementById('value-D').textContent = e.target.value;
+            updateSliderBackground(e.target);
+        });
+
+        document.getElementById('param-t').addEventListener('input', function(e) {
+            document.getElementById('value-t').textContent = e.target.value;
+            updateSliderBackground(e.target);
+        });
+
+        function updateSliderBackground(slider) {
+            const min = slider.min;
+            const max = slider.max;
+            const val = slider.value;
+            const percentage = ((val - min) / (max - min)) * 100;
+            slider.style.setProperty('--value', percentage + '%');
+        }
+
+        // Initialize slider backgrounds
+        document.querySelectorAll('input[type="range"]').forEach(slider => {
+            updateSliderBackground(slider);
+        });
+
+        // Apply parameters
+        function applyParameters() {
+            const params = {
+                mode: currentMode,
+                L: parseFloat(document.getElementById('param-L').value),
+                M: parseFloat(document.getElementById('param-M').value),
+                D: parseFloat(document.getElementById('param-D').value),
+                t: parseFloat(document.getElementById('param-t').value)
+            };
+
+            fetch('/api/params', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showStatus('✅ Parameters updated successfully!');
+                updateCurrentConfig(data.params);
+            })
+            .catch(error => {
+                showStatus('❌ Error updating parameters', true);
+                console.error('Error:', error);
+            });
+        }
+
+        function showStatus(message, isError = false) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+            statusEl.style.background = isError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 211, 238, 0.1)';
+            statusEl.style.borderLeftColor = isError ? '#ef4444' : '#22d3ee';
+            statusEl.style.color = isError ? '#ef4444' : '#22d3ee';
+            statusEl.classList.add('show');
+            
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 3000);
+        }
+
+        function updateCurrentConfig(params) {
+            document.getElementById('current-mode').textContent = params.mode;
+            document.getElementById('current-L').textContent = params.L.toFixed(2);
+            document.getElementById('current-M').textContent = params.M.toFixed(2);
+            document.getElementById('current-D').textContent = params.D.toFixed(3);
+            document.getElementById('current-t').textContent = params.t.toFixed(1);
+        }
+
+        // Initialize on load
+        updateModeButtons();
+    </script>
+</body>
+</html>
